@@ -1,0 +1,80 @@
+# Secrets & credentials — NEVER commit
+CREDENTIALS.md
+.env
+.env.*
+*.pem
+*.key
+!web_sota/src/lib/**
+!web_sota/src/lib/**/*
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+
+# Cache & state
+.cache/
+.ai-state/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Playwright
+.playwright-mcp/
+
+# Docker volumes
+docker-data/
+
+# Logs
+*.log
+logs/
+
+# Large models & binaries
+*.pt
+*.onnx
+*.bin
+*.safetensors
+
+# OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+
+# Trash
+_trash/
+
+# Screenshots
+screenshots/
+posters/
+
+# AI infra state (runtime files, not config)
+ai-infra/data/combat-log.jsonl
+ai-infra/memory/*.jsonl
+ai-infra/smoke/smoke-history.jsonl
+ai-infra/logs/
+ai-infra/failures/
+
+# Local agent logs
+local-agent/logs/
+
+# Agent state
+.agent/
+
+# Claude internal
+.claude/
+
+# Windows MCP build artifacts
+windows-computer-use-mcp/dist/
+windows-computer-use-mcp/build/
+
+# Database files
+*.sqlite
+*.sqlite3
