@@ -1,0 +1,12 @@
+node_modules/
+data/
+logs/
+*.log
+*.bak
+.env
+.env.*
+!.env.example
+!.env.*.example
+gpt55-stdout.log
+gpt55-stderr.log
+gpt55-*.log
