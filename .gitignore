@@ -61,6 +61,15 @@ ai-infra/memory/*.jsonl
 ai-infra/smoke/smoke-history.jsonl
 ai-infra/logs/
 ai-infra/failures/
+ai-infra/runtime/*.json
+ai-infra/runtime/*.jsonl
+ai-infra/runtime/*.db
+ai-infra/runtime/*.txt
+ai-infra/runtime/*.tmp*
+ai-infra/runtime/test-*.ps1
+ai-infra/runtime/debug-*.ps1
+ai-infra/runtime/radical-test.ps1
+ai-infra/runtime/rebuild-step1.ps1
 
 # Local agent logs
 local-agent/logs/
@@ -91,3 +100,4 @@ windows-computer-use-mcp/
 ai-pipeline/data/
 AppData/
 worktrees/
+data/
