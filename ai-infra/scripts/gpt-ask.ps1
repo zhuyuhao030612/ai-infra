@@ -1,9 +1,10 @@
-﻿# GPT-5.5 safe queue client v5 — HTTP pipeline
+﻿# GPT-5.5 safe queue client v6 — HTTP pipeline + SSE streaming
 param(
  [Parameter(Mandatory=$true)][ValidateNotNullOrEmpty()][string]$Prompt,
  [ValidateRange(10,86400)][int]$TimeoutSec=1800,
  [switch]$NoCache,
  [switch]$NoRedact,
+ [switch]$Stream,
  [ValidatePattern('^[A-Za-z0-9._-]{1,50}$')][string]$Mode='ask',
  [string]$RootDir=$(if($env:AI_ROOT){$env:AI_ROOT}else{'D:\Code'})
 )
@@ -61,6 +62,49 @@ if(!$NoCache){
  if(Test-Path -LiteralPath $cacheFile){
  try{$c=Get-Content $cacheFile -Raw -Encoding UTF8|ConvertFrom-Json; if($c.response -and ([DateTime]::Now-[DateTime]$c.timestamp).TotalHours -lt 1){Write-Output ([string]$c.response); exit 0}}catch{Remove-Item $cacheFile -Force -EA SilentlyContinue}
  }
+}
+
+# ── Streaming mode ──
+if ($Stream) {
+  $streamUri = 'http://127.0.0.1:3000/ask/stream'
+  $body = (@{prompt=$clean;model=$Mode}|ConvertTo-Json -Depth 4 -Compress)
+  $buf = [Text.Encoding]::UTF8.GetBytes($body)
+  $start = Get-Date
+  try {
+    $req = [Net.HttpWebRequest]::Create($streamUri)
+    $req.Method = 'POST'
+    $req.ContentType = 'application/json; charset=utf-8'
+    $req.Accept = 'text/event-stream'
+    $req.Timeout = $TimeoutSec * 1000
+    $req.GetRequestStream().Write($buf, 0, $buf.Length)
+    $req.GetRequestStream().Close()
+    $resp = $req.GetResponse()
+    $reader = New-Object IO.StreamReader($resp.GetResponseStream(), [Text.Encoding]::UTF8)
+    $fullText = ''
+    while (!$reader.EndOfStream) {
+      $line = $reader.ReadLine()
+      if ($line -match '^event: (.+)') { $evt = $Matches[1] }
+      elseif ($line -match '^data: (.+)') {
+        try { $d = $Matches[1] | ConvertFrom-Json } catch { continue }
+        if ($evt -eq 'token') { Write-Host -NoNewline $d.text }
+        elseif ($evt -eq 'done') { $fullText = $d.text }
+        elseif ($evt -eq 'error') { Write-Warning $d.message }
+      }
+    }
+    $reader.Close()
+    $sec = [Math]::Round(([DateTime]::Now - $start).TotalSeconds, 1)
+    Write-Host "`n[gpt-ask] stream done in ${sec}s"
+    if ($fullText) {
+      if ($cacheFile) { try { Write-JsonAtomic $cacheFile ([ordered]@{timestamp=(Get-Date -Format 'o');response=$fullText}) } catch {} }
+      Log-Event 'gpt.ask' $true ([ordered]@{duration_sec=$sec;prompt_len=$Prompt.Length;response_len=$fullText.Length;stream=$true})
+      Write-Output $fullText.Trim()
+      exit 0
+    }
+    Write-Output 'GPT_UNAVAILABLE'; exit 3
+  } catch {
+    Log-Event 'gpt.ask' $false ([ordered]@{error='stream_failed';detail=(Redact-Text $_.Exception.Message)})
+    Write-Output 'GPT_UNAVAILABLE'; exit 3
+  }
 }
 
 # Submit job via HTTP POST /ask
