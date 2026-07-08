@@ -219,6 +219,22 @@ switch ($Command) {
     $capId = $Arguments[0]
     $rest = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count - 1)] } else { @() }
 
+    # Support --file <path> for long prompts (>8191 chars or special characters)
+    $fileIdx = [Array]::IndexOf($Arguments, '--file')
+    if ($fileIdx -ge 0 -and $fileIdx + 1 -lt $Arguments.Count) {
+      $promptFile = $Arguments[$fileIdx + 1]
+      if (-not (Test-Path $promptFile)) { Write-Host "ERR  file not found: $promptFile"; exit 1 }
+      $fileContent = Get-Content $promptFile -Raw -Encoding UTF8
+      $rest = @($fileContent)
+      # Remove --file and its value from $rest for downstream consumers
+      $restArgs = [System.Collections.ArrayList]::new()
+      for ($i = 1; $i -lt $Arguments.Count; $i++) {
+        if ($i -eq $fileIdx -or $i -eq $fileIdx + 1) { continue }
+        [void]$restArgs.Add($Arguments[$i])
+      }
+      $rest = if ($restArgs.Count -gt 0) { $restArgs.ToArray() } else { @($fileContent) }
+    }
+
     $caps = Get-Capabilities
     $cap = $caps.capabilities | Where-Object { $_.id -eq $capId } | Select-Object -First 1
     if (-not $cap) { Write-Host "ERR  capability not found: $capId"; Write-Host "Run 'ai list' to see all capabilities"; exit 1 }
