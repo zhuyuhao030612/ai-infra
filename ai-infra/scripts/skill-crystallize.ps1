@@ -26,7 +26,7 @@ if ($ExecutionLogFile -and (Test-Path $ExecutionLogFile)) {
 
 # ── Phase 1: Complexity evaluation ──
 Write-Host "[crystallize] Phase 1: Complexity evaluation..."
-$keywords = @('WebSearch','WebFetch','Grep','Glob','Read','Write','Edit','Bash','PowerShell','Agent(','Workflow(','Skill(')
+$keywords = @('WebSearch','WebFetch','Grep','Glob','Read','Write','Edit','Bash','PowerShell','Agent\(','Workflow\(','Skill\(')
 $toolCallCount = 0
 foreach ($kw in $keywords) { $toolCallCount += ([regex]::Matches($ExecutionLog, "(?i)$kw")).Count }
 Write-Host "  Tool calls detected: ~$toolCallCount"
