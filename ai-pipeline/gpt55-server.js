@@ -1,37 +1,224 @@
+// gpt55-server.js v9 — SSE streaming + non-streaming, 会话上下文, 纯HTTP API
 'use strict';
-const http=require('http'),fs=require('fs/promises'),fss=require('fs'),path=require('path'),crypto=require('crypto');
-const {chromium}=require('playwright');
-const ROOT=__dirname,DATA=process.env.GPT55_DATA||path.join(ROOT,'data'),PROFILE=process.env.GPT55_PROFILE||path.join(DATA,'profile'),QF=process.env.GPT55_QUEUE||path.join(DATA,'queue.json'),HF=path.join(DATA,'health.json'),TF=path.join(DATA,'trace'),LOCK=QF+'.lock';
-const CHAT_URL=process.env.GPT55_URL||'https://ai.nbai88.top/',PORT=+process.env.PORT||3000,MAX=+process.env.MAX_ATTEMPTS||3,LEASE=+process.env.LEASE_MS||180000,STABLE=+process.env.STABLE_MS||15000,RESPTO=+process.env.RESP_TIMEOUT_MS||1800000;
-const EDIT='div.ProseMirror[contenteditable="true"],[contenteditable="true"][role="textbox"],div[contenteditable="true"]:not([aria-hidden="true"])';
-const MSG='[data-message-author-role="assistant"]',SEND='button[data-testid="send-button"],button[aria-label*="Send"],button:has-text("Send")',STOP='button[data-testid="stop-button"],button[aria-label*="Stop"],button:has-text("Stop generating")',CONT='button:has-text("Continue generating"),button:has-text("继续生成")';
-let ctx,page,tracing=false,busy=false,inConversation=false;
-const now=()=>Date.now(),iso=()=>new Date().toISOString(),wait=ms=>new Promise(r=>setTimeout(r,ms)),id=()=>crypto.randomBytes(12).toString('hex'),sha=s=>crypto.createHash('sha256').update(s).digest('hex');
-async function boot(){await fs.mkdir(DATA,{recursive:true});await fs.mkdir(TF,{recursive:true});if(!fss.existsSync(QF))await fs.writeFile(QF,'[]')}
-async function qread(){try{return JSON.parse(await fs.readFile(QF,'utf8')||'[]')}catch{return[]}}
-async function qwrite(q){let t=QF+'.tmp';await fs.writeFile(t,JSON.stringify(q,null,2));await fs.rename(t,QF)}
-async function qlock(){for(let i=0;i<80;i++){try{return await fs.open(LOCK,'wx')}catch{try{let s=await fs.stat(LOCK);if(now()-s.mtimeMs>15000)await fs.rm(LOCK,{force:true})}catch{}await wait(40+i*20)}}throw Error('queue_lock_timeout')}
-async function tx(fn){let h=await qlock();try{let q=await qread(),r=await fn(q);await qwrite(q);return r}finally{await h.close().catch(()=>{});await fs.rm(LOCK,{force:true}).catch(()=>{})}}
-async function setHealth(status,reason,ms=0){await fs.writeFile(HF,JSON.stringify({status,reason,paused_until:now()+ms,updated_at:iso()},null,2)).catch(()=>{})}
-async function unhealthy(){try{let h=JSON.parse(await fs.readFile(HF,'utf8'));return h.status==='account_unhealthy'&&h.paused_until>now()}catch{return false}}
-async function launch(){await ctx?.close().catch(()=>{});await fs.mkdir(PROFILE,{recursive:true});ctx=await chromium.launchPersistentContext(PROFILE,{headless:false,viewport:null,args:['--no-sandbox','--disable-dev-shm-usage']});ctx.setDefaultTimeout(30000);page=ctx.pages()[0]||await ctx.newPage();await page.goto(CHAT_URL,{waitUntil:'domcontentloaded',timeout:60000}).catch(()=>{})}
-async function ensure(){if(!ctx||!page||page.isClosed())await launch()}
-async function recover(lv){inConversation=false;console.log('[自愈] lv',lv);if(lv===0&&page&&!page.isClosed()){await closePopups();await page.reload({waitUntil:'domcontentloaded',timeout:60000}).catch(()=>{})}else await launch()}
-async function loginIfNeeded(){try{if(!(await page.locator('input[type="password"]').first().isVisible({timeout:2000}).catch(()=>false)))return false}catch{return false}const u=process.env.GPT_USER,p=process.env.GPT_PASS;if(!u||!p)throw Error('GPT_USER/GPT_PASS not set');console.log('[login] logging in...');await page.locator('input[type="email"],input[name="username"],input[type="text"]').first().fill(u).catch(()=>{});await page.locator('input[type="password"]').first().fill(p);const btn=page.locator('button[type="submit"],button:has-text("登录"),button:has-text("Sign in"),button:has-text("Log in"),button:has-text("继续")').first();if(await btn.isVisible().catch(()=>false))await btn.click();else await page.keyboard.press('Enter');await wait(3000);const still=await page.locator('input[type="password"]').first().isVisible({timeout:2000}).catch(()=>true);if(still)throw Error('login failed - check credentials/captcha');console.log('[login] done');await wait(2000);await closePopups();for(const sel of ['text=ChatGPT Plus','text=GPT-5','text=GPT',"text=通道",'div:has-text("ChatGPT")','div:has-text("Plus")','[class*=channel]','[class*=card]']){try{const el=page.locator(sel).first();if(await el.isVisible({timeout:1500}).catch(()=>false)){await el.click();await wait(3000);console.log('[login] channel selected:',sel);return true}}catch{}}console.log('[login] no channel UI, assuming already in chat');return true}
-async function closePopups(){for(const s of ['button[aria-label="Close"]','button:has-text("Not now")','button:has-text("Maybe later")','button:has-text("稍后")','button:has-text("知道了")','button:has-text("关闭")'])await page.locator(s).first().click({timeout:700}).catch(()=>{})}
-async function checkHealth(){let t=await page.locator('body').innerText({timeout:2500}).catch(()=>'');let chatText='';try{let msgs=await page.locator('[data-message-author-role]').allInnerTexts().catch(()=>[]);chatText=msgs.join('\n')}catch(e){}let bodyNoChat=t.replace(chatText,'');let m=bodyNoChat.match(/verify you are human|human verification|unusual activity|Cloudflare|请输入验证码|请完成验证|人机验证|are you a robot/i);if(m){let captchaEl=await page.locator('iframe[src*="captcha"],iframe[src*="recaptcha"],input[placeholder*="验证码"],input[name*="captcha"],div[class*="captcha"]').count().catch(()=>0);if(captchaEl>0){await setHealth('account_unhealthy','captcha_element_confirmed',/rate|限流/i.test(m[0])?15*60e3:60*60e3);let e=Error('account_unhealthy:'+m[0]);e.code='ACCOUNT';throw e}}}
-async function tstart(){if(ctx&&!tracing)await ctx.tracing.start({screenshots:true,snapshots:true,sources:false}).then(()=>tracing=true).catch(()=>{})}
-async function tstop(j,save){if(!ctx)return;let base=path.join(TF,`${j.id}-a${j.attempt}-${Date.now()}`);if(save&&page&&!page.isClosed())await page.screenshot({path:base+'.png',fullPage:true}).catch(()=>{});if(tracing)await ctx.tracing.stop(save?{path:base+'.zip'}:undefined).catch(()=>{});tracing=false}
-async function leaseJob(){return tx(q=>{let n=now();for(const j of q){let ok=j.state==='pending'||(j.state==='retryable_failed'&&(!j.retry_after||j.retry_after<=n))||(j.state==='running'&&j.lease_until<n);if(!ok)continue;if((j.attempt||0)>=MAX){j.state='dead_letter';j.updated_at=iso();continue}Object.assign(j,{state:'running',attempt:(j.attempt||0)+1,lease_token:id(),lease_until:n+LEASE,started_at:iso(),updated_at:iso()});return JSON.parse(JSON.stringify(j))}})}
-async function heartbeat(j){await tx(q=>{let x=q.find(x=>x.id===j.id&&x.lease_token===j.lease_token&&x.state==='running');if(x)Object.assign(x,{lease_until:now()+LEASE,updated_at:iso()})}).catch(()=>{})}
-function etype(e){let s=(e&&e.stack||e&&e.message||String(e));if(e.code==='ACCOUNT')return'account_unhealthy';if(/TRUNC/.test(s))return'truncated';if(/INPUT/.test(s))return'input_mismatch';if(/Timeout|timeout/i.test(s))return'timeout';return'unknown'}
-async function finish(j,ok,result,e){await tx(q=>{let x=q.find(x=>x.id===j.id&&x.lease_token===j.lease_token);if(!x)return;Object.assign(x,{lease_until:0,updated_at:iso()});if(ok)Object.assign(x,{state:'succeeded',result,succeeded_at:iso()});else{let type=etype(e),dead=(x.attempt||0)>=MAX;Object.assign(x,{state:dead?'dead_letter':'retryable_failed',retry_after:dead?0:now()+(type==='account_unhealthy'?15*60e3:5000*Math.pow(3,(x.attempt||1)-1)),error:{type,message:e.message||String(e),at:iso()}})}})}
-async function inputPrompt(prompt){await closePopups();await loginIfNeeded().catch(()=>{});let ed=page.locator(EDIT).last();await ed.waitFor({state:'visible',timeout:45000});await ed.focus();await page.keyboard.press(process.platform==='darwin'?'Meta+A':'Control+A');await page.keyboard.press('Backspace');prompt+='\n【重要：回复完成后必须在最后一行单独输出【完成】，否则我不会认为你回复完了】';await page.keyboard.insertText(prompt);await page.waitForTimeout(300);let got=(await ed.innerText({timeout:5000}).catch(()=>''))||'';let a=got.replace(/\s+/g,' ').trim(),b=prompt.replace(/\s+/g,' ').trim();if(!a.includes(b.slice(0,Math.min(120,b.length)))){let e=Error('INPUT:ProseMirror文本校验失败');e.code='INPUT';throw e}}
-async function submit(){let before=await page.locator(MSG).count().catch(()=>0);await page.keyboard.press('Enter');await page.waitForTimeout(1200);if((await page.locator(MSG).count().catch(()=>0))<=before)await page.locator(SEND).last().click({timeout:5000}).catch(()=>{});return before}
-function isCut(s){let t=s.trim();return !t||(/network error|message stream interrupted|Something went wrong|继续生成|Continue generating/i.test(t))||((t.match(/```/g)||[]).length%2===1)}
-async function waitAnswer(j,before){let last='',lastChange=now(),start=now(),cont=0;for(;;){await heartbeat(j);let c=await page.locator(MSG).count().catch(()=>0),stop=await page.locator(STOP).count().catch(()=>0),can=await page.locator(CONT).count().catch(()=>0);if(can&&cont<2){await page.locator(CONT).first().click({timeout:5000}).catch(()=>{});cont++;lastChange=now();await wait(2000);continue}if(c>before){let all=[];for(let i=before;i<c;i++){let t=await page.locator(MSG).nth(i).innerText({timeout:3000}).catch(()=>'');if(t)all.push(t);try{let imgs=await page.locator(MSG).nth(i).locator('img').evaluateAll(els=>els.map(e=>e.src)).catch(()=>[]);if(imgs.length)all.push('IMGS:'+imgs.join('|'))}catch(e){}}let txt=all.join('\n\n');if(txt!==last){last=txt;lastChange=now()}}if(last&&stop===0&&can===0){if(last.includes('【完成】')){console.log('[完成标记] detected');return last.replace('【完成】','').trim()}if(now()-lastChange>=STABLE){if(!isCut(last))return last.trim()}}if(now()-start>RESPTO)throw Error('response_timeout');await wait(1500)}}
-async function doJob(j){await ensure();await page.goto(CHAT_URL,{waitUntil:'domcontentloaded',timeout:60000}).catch(()=>{});await closePopups();await loginIfNeeded();await wait(1000);await inputPrompt(j.prompt);let before=await submit();let out=await waitAnswer(j,before);if(!out||out.length<2)throw Error('empty_output');return out}
-async function runJob(j){busy=true;let hb=setInterval(()=>heartbeat(j),30000);for(let lv=0;lv<4;lv++)try{await tstart();let out=await doJob(j);await tstop(j,false);await finish(j,true,out);console.log('[成功]',j.id);break}catch(e){await tstop(j,true);console.error('[失败]',j.id,e.message);if(lv===3){await finish(j,false,null,e);break}await recover(lv)}clearInterval(hb);busy=false}
-async function body(req){return new Promise((res,rej)=>{let chunks=[],len=0;req.on('data',d=>{chunks.push(d);len+=d.length;if(len>2e6)rej(Error('body_too_large'))});req.on('end',()=>{try{let s=Buffer.concat(chunks).toString('utf8');res(s?JSON.parse(s):{})}catch(e){rej(e)}});req.on('error',rej)})}
-const send=(res,c,o)=>{res.writeHead(c,{'content-type':'application/json;charset=utf-8'});res.end(JSON.stringify(o,null,2))};
-http.createServer(async(req,res)=>{try{let u=new URL(req.url,'http://x');if(req.method==='POST'&&u.pathname==='/ask'){let b=await body(req),prompt=String(b.prompt||b.q||'').trim();if(!prompt)return send(res,400,{error:'missing prompt'});let idem=b.idempotency_key||sha(prompt),job=await tx(q=>{let old=q.find(j=>j.idem===idem&&j.state!=='dead_letter');if(old)return old;let j={id:b.job_id||id(),idem,prompt,state:'pending',attempt:0,created_at:iso(),updated_at:iso()};q.push(j);return j});return send(res,200,{id:job.id,state:job.state})}if(req.method==='GET'&&u.pathname.startsWith('/job/')){let jid=u.pathname.split('/').pop(),q=await qread(),j=q.find(x=>x.id===jid);return send(res,j?200:404,j||{error:'not_found'})}if(req.method==='GET'&&u.pathname=='/health'){let h={busy,account_unhealthy:await unhealthy()};try{Object.assign(h,JSON.parse(await fs.readFile(HF,'utf8')))}catch{}return send(res,200,h)}if(req.method=='GET'&&u.pathname=='/queue'){let q=await qread(),m={};q.forEach(j=>m[j.state]=(m[j.state]||0)+1);return send(res,200,{counts:m,total:q.length})}if(req.method==='POST'&&u.pathname=='/new-chat'){inConversation=false;return send(res,200,{ok:true,message:'next job will start fresh'})}send(res,404,{error:'not_found'})}catch(e){send(res,500,{error:e.message})}}).listen(PORT,()=>console.log('[gpt55-server]',PORT));(async()=>{await boot();await launch();for(;;){if(await unhealthy()){await wait(5000);continue}let j=await leaseJob();if(!j){await wait(1000);continue}runJob(j).catch(e=>console.error(e))}})();process.on('SIGINT',()=>{console.log('[gpt55-server] shutting down');process.exit(0)});
+const {chromium}=require('playwright'),fs=require('fs/promises'),fss=require('fs'),path=require('path'),crypto=require('crypto'),http=require('http');
+
+const DATA=process.env.GPT55_DATA||path.join(__dirname,'data');
+const PROFILE=process.env.GPT55_PROFILE||path.join(DATA,'profile');
+const TOKEN_FILE=path.join(DATA,'session-tokens.json');
+const CHAT_URL=(process.env.GPT55_URL||'https://ai.nbai88.top/').replace(/\/$/,'');
+const PORT=+process.env.PORT||3000;
+const HEADLESS=process.env.GPT55_HEADLESS==='1';
+const MODEL=process.env.GPT55_MODEL||'gpt-5-5-thinking';
+
+let ctx,page,cookies=[],alive=false,sessionConvId=null;
+
+const iso=()=>new Date().toISOString();
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const cookieHeader=()=>cookies.map(c=>`${c.name}=${c.value}`).join('; ');
+
+// ── 浏览器 ──
+async function startBrowser(){
+  await fs.mkdir(PROFILE,{recursive:true});
+  ctx=await chromium.launchPersistentContext(PROFILE,{headless:HEADLESS,viewport:null,args:['--no-sandbox','--disable-dev-shm-usage']});
+  ctx.setDefaultTimeout(60000);
+  page=ctx.pages()[0]||await ctx.newPage();
+  await page.goto(CHAT_URL,{waitUntil:'domcontentloaded',timeout:60000}).catch(()=>{});
+  sessionConvId=null;
+  console.log('[browser] started');
+}
+async function refreshCookies(){
+  if(!ctx||!page||page.isClosed())return;
+  try{cookies=await ctx.cookies();fss.writeFileSync(TOKEN_FILE,JSON.stringify({cookies,updated:iso()},null,2));console.log('[cookies]',cookies.length)}catch(e){}
+}
+function loadSavedCookies(){try{let s=JSON.parse(fss.readFileSync(TOKEN_FILE,'utf8'));if(s.cookies?.length)cookies=s.cookies}catch{}}
+
+// ── API ──
+async function apiCall(endpoint,method,body){
+  let url=CHAT_URL+endpoint;
+  let headers={'Cookie':cookieHeader(),'Content-Type':'application/json; charset=utf-8','Accept':'*/*','Origin':CHAT_URL,'Referer':CHAT_URL};
+  let bodyBytes=body?Buffer.from(JSON.stringify(body),'utf8'):undefined;
+  let resp=await fetch(url,{method,headers,body:bodyBytes});
+  let buf=await resp.arrayBuffer();
+  let text=Buffer.from(buf).toString('utf8');
+  if(!resp.ok)throw Error(`${resp.status}: ${text.substring(0,200)}`);
+  try{return JSON.parse(text)}catch{return text}
+}
+
+// ── 统一 SSE 解析：按事件边界分块，提取 assistant 文本 ──
+function parseSSE(text){
+  let result='',convId=null;
+  for(let event of text.split(/\n\n+/)){
+    let lines=event.split(/\r?\n/);
+    for(let line of lines){
+      if(!line||!line.startsWith('data:'))continue;
+      let json=line.startsWith('data: ')?line.slice(6):line.slice(5);
+      if(!json||json==='[DONE]')continue;
+      try{let d=JSON.parse(json);
+        if(d.conversation_id)convId=d.conversation_id;
+        // 流式追加
+        if(d.o==='append'&&typeof d.v==='string'&&d.p?.includes('parts'))result+=d.v;
+        // 完整 assistant 消息（add/replace/patch）
+        let msg=d.v?.message||d.message;
+        if(msg&&msg.author?.role==='assistant'&&msg.content?.parts&&msg.status!=='finished_successfully')continue;
+        if(msg&&msg.author?.role==='assistant'&&msg.content?.parts){
+          let p=msg.content.parts.filter(x=>typeof x==='string');if(p.length)result=p.join('');
+        }
+      }catch{}
+    }
+  }
+  return{text:result.trim()||null,conversationId:convId};
+}
+
+// ── 流式发送（/ask/stream）──
+async function streamChat(prompt,model,write){
+  model=model||MODEL;
+  prompt+='\n【重要：回复完成后必须在最后一行单独输出【完成】，否则我不会认为你回复完了】';
+  let convId=null,fullText='',lastSent='';
+
+  let prepBody={action:'next',fork_from_shared_post:false,parent_message_id:sessionConvId?'':('client-created-root'),model,client_prepare_state:'none',timezone_offset_min:-480,timezone:'Asia/Shanghai'};
+  if(sessionConvId)prepBody.conversation_id=sessionConvId;
+  try{let p=await apiCall('/backend-api/f/conversation/prepare','POST',prepBody);if(p?.conversation_id){sessionConvId=p.conversation_id;convId=p.conversation_id}}catch(e){console.log('[api] prepare:',e.message.substring(0,80))}
+
+  let msgBody={action:'next',messages:[{id:crypto.randomUUID(),author:{role:'user'},create_time:Date.now()/1000,content:{content_type:'text',parts:[prompt]}}],model,timezone_offset_min:-480,timezone:'Asia/Shanghai'};
+  if(sessionConvId)msgBody.conversation_id=sessionConvId;
+
+  write({type:'status',state:'sending'});
+
+  let url=CHAT_URL+'/backend-api/f/conversation';
+  let headers={'Cookie':cookieHeader(),'Content-Type':'application/json; charset=utf-8','Accept':'text/event-stream','Origin':CHAT_URL,'Referer':CHAT_URL};
+  let resp=await fetch(url,{method:'POST',headers,body:Buffer.from(JSON.stringify(msgBody),'utf8')});
+  if(!resp.ok)throw Error(`${resp.status}: backend error`);
+
+  let reader=resp.body.getReader();
+  let decoder=new TextDecoder('utf-8');
+  let buffer='',streamEnded=false;
+
+  while(true){
+    let{value,done}=await reader.read();
+    if(value)buffer+=decoder.decode(value,{stream:!done});
+    if(done)streamEnded=true;
+
+    let events=buffer.split(/\n\n+/);
+    buffer=events.pop()||'';
+
+    for(let event of events){
+      if(!event.trim())continue;
+      let isDone=false;
+      for(let line of event.split(/\r?\n/)){
+        if(!line||!line.startsWith('data:'))continue;
+        let json=line.startsWith('data: ')?line.slice(6):line.slice(5);
+        if(!json||json==='[DONE]'){isDone=true;continue}
+        try{let d=JSON.parse(json);
+          if(d.conversation_id)convId=d.conversation_id;
+          if(d.o==='append'&&typeof d.v==='string'&&d.p?.includes('parts'))fullText+=d.v;
+          let msg=d.v?.message||d.message;
+          if(msg&&msg.author?.role==='assistant'&&msg.content?.parts){let p=msg.content.parts.filter(x=>typeof x==='string');if(p.length)fullText=p.join('')}
+        }catch{}
+      }
+      if(isDone){streamEnded=true;break}
+    }
+
+    if(fullText!==lastSent){
+      let delta=fullText.slice(lastSent.length);
+      if(delta)write({type:'token',text:delta});
+      lastSent=fullText;
+    }
+    if(streamEnded)break;
+  }
+
+  if(convId)sessionConvId=convId;
+  let final=(fullText||'').replace(/【完成】/g,'').replace(/【完$/,'').replace(/【$/,'').replace(/【成】/g,'').trim()||null;
+  write({type:'done',text:final,conversationId:convId||sessionConvId});
+  console.log('[api] streaming done:',(final||'').length,'chars');
+  return{text:final,conversationId:convId||sessionConvId};
+}
+
+// ── 非流式 ──
+async function chat(prompt,model){
+  model=model||MODEL;
+  prompt+='\n【重要：回复完成后必须在最后一行单独输出【完成】，否则我不会认为你回复完了】';
+  let prepBody={action:'next',fork_from_shared_post:false,parent_message_id:sessionConvId?'':('client-created-root'),model,client_prepare_state:'none',timezone_offset_min:-480,timezone:'Asia/Shanghai'};
+  if(sessionConvId)prepBody.conversation_id=sessionConvId;
+  try{let p=await apiCall('/backend-api/f/conversation/prepare','POST',prepBody);if(p?.conversation_id)sessionConvId=p.conversation_id}catch(e){console.log('[api] prepare:',e.message.substring(0,80))}
+  let msgBody={action:'next',messages:[{id:crypto.randomUUID(),author:{role:'user'},create_time:Date.now()/1000,content:{content_type:'text',parts:[prompt]}}],model,timezone_offset_min:-480,timezone:'Asia/Shanghai'};
+  if(sessionConvId)msgBody.conversation_id=sessionConvId;
+  let raw=await apiCall('/backend-api/f/conversation','POST',msgBody);
+  let parsed=typeof raw==='string'?parseSSE(raw):{text:(raw?.message?.content?.parts?.filter(p=>typeof p==='string').join('')||null),conversationId:raw?.conversation_id||null};
+  let text=parsed.text||(typeof raw==='string'?raw.substring(0,2000):JSON.stringify(raw).substring(0,2000));
+  if(parsed.conversationId)sessionConvId=parsed.conversationId;
+  console.log('[api]',text.length,'chars, conv:',sessionConvId||'new');
+  return{text,conversationId:sessionConvId};
+}
+
+// ── Jobs ──
+const jobs=new Map();
+async function processJob(jobId,prompt,model){
+  try{
+    let result=await chat(prompt,model);
+    jobs.set(jobId,{state:'succeeded',result:result.text,conversationId:result.conversationId,updated_at:iso()});
+    if(result.conversationId&&page&&!page.isClosed())page.goto(CHAT_URL+'/c/'+result.conversationId,{waitUntil:'domcontentloaded',timeout:15000}).catch(()=>{});
+  }catch(e){
+    console.error('[job]',jobId,'failed:',e.message.substring(0,150));
+    await refreshCookies();
+    try{
+      let result=await chat(prompt,model);
+      jobs.set(jobId,{state:'succeeded',result:result.text,conversationId:result.conversationId,updated_at:iso()});
+    }catch(e2){
+      jobs.set(jobId,{state:'retryable_failed',error:{type:'api_error',message:e2.message},updated_at:iso()});
+    }
+  }
+}
+setInterval(()=>{let cutoff=Date.now()-600000;for(let[k,v]of jobs){if(new Date(v.updated_at).getTime()<cutoff)jobs.delete(k)}},300000);
+
+// ── Server ──
+const send=(res,c,o)=>{let data=Buffer.from(JSON.stringify(o),'utf8');res.writeHead(c,{'content-type':'application/json; charset=utf-8','content-length':data.length});res.end(data)};
+const bodyParser=req=>new Promise((res,rej)=>{
+  let chunks=[],len=0;
+  req.on('data',d=>{chunks.push(d);len+=d.length;if(len>2e6)rej(Error('body_too_large'))});
+  req.on('end',()=>{try{let s=Buffer.concat(chunks).toString('utf8');res(s?JSON.parse(s):{})}catch(e){rej(e)}});
+  req.on('error',rej);
+});
+
+http.createServer(async(req,res)=>{
+  try{
+    let u=new URL(req.url,'http://x');
+    if(req.method==='POST'&&u.pathname==='/ask/stream'){
+      let b=await bodyParser(req),prompt=String(b.prompt||'').trim();
+      if(!prompt)return send(res,400,{error:'missing prompt'});
+      res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive','X-Accel-Buffering':'no'});
+      let write=(data)=>{res.write(`event: ${data.type}\ndata: ${JSON.stringify(data)}\n\n`)};
+      try{let result=await streamChat(prompt,b.model||null,write);let jid=crypto.randomBytes(12).toString('hex');jobs.set(jid,{id:jid,state:'succeeded',result:result.text,updated_at:iso()})}catch(e){write({type:'error',message:e.message})}
+      res.end();
+      return;
+    }
+    if(req.method==='POST'&&u.pathname==='/ask'){
+      let b=await bodyParser(req),prompt=String(b.prompt||'').trim();
+      if(!prompt)return send(res,400,{error:'missing prompt'});
+      let jobId=crypto.randomBytes(12).toString('hex');
+      jobs.set(jobId,{id:jobId,state:'pending',created_at:iso()});
+      processJob(jobId,prompt,b.model||null);
+      return send(res,200,{id:jobId,state:'pending'});
+    }
+    if(req.method==='GET'&&u.pathname.startsWith('/job/')){
+      let jid=u.pathname.split('/').pop(),j=jobs.get(jid);
+      return send(res,j?200:404,j||{error:'not_found'});
+    }
+    if(req.method==='GET'&&u.pathname==='/health'){
+      return send(res,200,{alive,busy:false,hasCookies:!!cookies.length,model:MODEL,sessionConvId:sessionConvId||null,activeJobs:jobs.size});
+    }
+    if(req.method==='GET'&&u.pathname==='/queue'){let m={};for(let[,v]of jobs){m[v.state]=(m[v.state]||0)+1}return send(res,200,{counts:m,total:jobs.size})}
+    if(req.method==='POST'&&u.pathname==='/new-chat'){sessionConvId=null;if(page&&!page.isClosed())page.goto(CHAT_URL,{waitUntil:'domcontentloaded',timeout:15000}).catch(()=>{});return send(res,200,{ok:true})}
+    if(req.method==='POST'&&u.pathname==='/refresh'){await refreshCookies();return send(res,200,{cookies:cookies.length})}
+    send(res,404,{error:'not_found'});
+  }catch(e){send(res,500,{error:e.message})}
+}).listen(PORT,()=>console.log('[server] listening on',PORT));
+
+(async()=>{
+  loadSavedCookies();
+  await startBrowser();
+  await wait(3000);
+  await refreshCookies();
+  alive=true;
+  setInterval(async()=>{try{await refreshCookies()}catch{}},1800000);
+  console.log('[server] ready — model:',MODEL);
+})();
