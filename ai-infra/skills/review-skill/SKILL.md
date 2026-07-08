@@ -1,3 +1,8 @@
+---
+name: review-skill
+description: 外脑GPT-5.5复核 — 架构选型或重大重构时调用GPT-5.5进行独立审查
+version: 1.0.0
+---
 # review-skill — 外脑 GPT-5.5 复核
 
 ## 适用场景

@@ -1,3 +1,8 @@
+---
+name: handoff-summary-skill
+description: 任务交接总结 — 任务完成时生成结构化handoff报告，包含决策、风险、遗留项
+version: 1.0.0
+---
 # handoff-summary-skill — 任务交接总结
 
 ## 适用场景

@@ -1,3 +1,8 @@
+---
+name: security-gate-skill
+description: 安全门禁 — 写入前14条规则扫描，防止secret/token泄露到代码或记忆
+version: 1.0.0
+---
 # security-gate-skill — 安全门禁
 
 ## 适用场景

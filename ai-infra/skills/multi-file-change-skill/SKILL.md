@@ -1,3 +1,8 @@
+---
+name: multi-file-change-skill
+description: 多文件联动影响分析 — 跨文件改动前分析依赖关系和影响范围
+version: 1.0.0
+---
 # multi-file-change-skill — 多文件联动影响分析
 
 ## 适用场景

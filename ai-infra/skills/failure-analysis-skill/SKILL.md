@@ -1,3 +1,8 @@
+---
+name: failure-analysis-skill
+description: 故障分析与阻断 — 同一错误签名失败2次时触发根因分析，防止重复无效尝试
+version: 1.0.0
+---
 # failure-analysis-skill — 故障分析与阻断
 
 ## 适用场景
