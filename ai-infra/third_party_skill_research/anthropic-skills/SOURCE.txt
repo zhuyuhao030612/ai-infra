@@ -1,0 +1,5 @@
+skill: anthropic-skills
+url: https://github.com/anthropics/claude-code.git
+commit: 01f1617f14452ac78bf319cef2236d87c0fe05cb
+date: 2026-06-26 21:29:36 +0000
+clone_date: 2026-06-28 08:02:02

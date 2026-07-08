@@ -1,0 +1,6 @@
+{
+  "tool": "Bash",
+  "level": "warning",
+  "reason": "Warning: matched 'browser-profile'. Proceeding but logged for audit.",
+  "ts": "2026-06-30T16:51:17.3916736+08:00"
+}

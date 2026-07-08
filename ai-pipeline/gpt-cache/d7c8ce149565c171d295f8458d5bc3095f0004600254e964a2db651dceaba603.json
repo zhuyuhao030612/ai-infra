@@ -1,0 +1,4 @@
+{
+  "timestamp": "2026-06-29T21:28:06.8833524+08:00",
+  "response": "我无法直接读取你本机 D:\\Code\\... 路径。可访问的文件库里没有命中这 6 个脚本，所以不能真实审查，不能说 CLEAN。\n文件审查结果原因desktop-action.ps1未审查当前对话无法读取本机 D:\\Code 文件env-probe.ps1未审查当前对话无法读取本机 D:\\Code 文件health-check.ps1未审查当前对话无法读取本机 D:\\Code 文件gui-probe.ps1未审查当前对话无法读取本机 D:\\Code 文件state-sync.ps1未审查当前对话无法读取本机 D:\\Code 文件task-ledger.ps1未审查当前对话无法读取本机 D:\\Code 文件\n把这条命令输出贴回来即可继续审查：\nPowerShellGet-Content D:\\Code\\ai-infra\\scripts\\desktop-action.ps1 -Raw\"`n--- env-probe.ps1 ---\"Get-Content D:\\Code\\ai-infra\\scripts\\env-probe.ps1 -Raw\"`n--- health-check.ps1 ---\"Get-Content D:\\Code\\ai-infra\\scripts\\health-check.ps1 -Raw\"`n--- gui-probe.ps1 ---\"Get-Content D:\\Code\\ai-infra\\scripts\\gui-probe.ps1 -Raw\"`n--- state-sync.ps1 ---\"Get-Content D:\\Code\\ai-infra\\scripts\\state-sync.ps1 -Raw\"`n--- task-ledger.ps1 ---\"Get-Content D:\\Code\\ai-infra\\scripts\\task-ledger.ps1 -Raw"
+}

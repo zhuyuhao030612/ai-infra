@@ -1,0 +1,4 @@
+﻿{
+    "timestamp":  "2026-07-05T11:10:36.5795472+08:00",
+    "response":  "import re\n\ndef parse_price(text):\nif not isinstance(text, str):\nraise ValueError(\"Unparseable price\")\n\nvalue = text.strip()\n\nif value.lower() == \"free\":\n    return 0.0\n\nmatch = re.fullmatch(r\"(?:[A-Za-z]{3}\\s*)?(\\d+(?:\\.\\d+)?)\", value)\n\nif not match:\n    raise ValueError(\"Unparseable price\")\n\nreturn float(match.group(1))"
+}

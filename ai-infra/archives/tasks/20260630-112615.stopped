@@ -1,0 +1,8 @@
+{
+  "runId": "20260630-112615",
+  "event": "Stop",
+  "ts": "2026-06-30T11:26:15.7643797+08:00",
+  "gate_reason": "",
+  "status": "assistant_stopped",
+  "evidence_ok": true
+}

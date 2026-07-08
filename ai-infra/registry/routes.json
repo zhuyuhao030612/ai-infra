@@ -1,0 +1,223 @@
+﻿{
+  "schemaVersion": 1,
+  "description": "任务路由表。匹配 taskKinds/intents 后自动选择主能力和降级方案。替换旧的 agent-router.json（只有4条）。",
+  "routes": [
+    {
+      "id": "route.code.bug",
+      "match": { "taskKinds": ["bug","debug","failure","fix","报错","修bug"] },
+      "primary": "agent.plan",
+      "fallback": "model.gpt55",
+      "requiredSkills": ["skill.systematic-debugging","skill.test-driven-development"],
+      "requiredSteps": ["reproduce","locate","fix","test","review","close"]
+    },
+    {
+      "id": "route.code.feature",
+      "match": { "taskKinds": ["创建","实现","开发","新增","编写","补充测试","写测试","feature","implement","新功能"] },
+      "primary": "agent.plan",
+      "fallback": "model.gpt55",
+      "requiredSkills": ["skill.brainstorming","skill.writing-plans","skill.test-driven-development"],
+      "requiredSteps": ["design","plan","implement","test","review","close"]
+    },
+    {
+      "id": "route.code.refactor",
+      "match": { "taskKinds": ["refactor","重构","simplify","简化","cleanup"] },
+      "primary": "skill.simplify",
+      "fallback": "skill.code-review",
+      "requiredSkills": ["skill.simplify"],
+      "requiredSteps": ["read","simplify","verify","close"]
+    },
+    {
+      "id": "route.code.review",
+      "match": { "taskKinds": ["review","审查","code-review","检查代码"] },
+      "primary": "skill.code-review",
+      "fallback": "model.gpt55",
+      "requiredSkills": ["skill.requesting-code-review"],
+      "requiredSteps": ["review","report","close"]
+    },
+    {
+      "id": "route.code.security",
+      "match": { "taskKinds": ["security","安全","audit","审计","漏洞"] },
+      "primary": "model.gpt55",
+      "fallback": "agent.code-reviewer",
+      "requiredSkills": ["skill.security-review"],
+      "requiredSteps": ["audit","report","fix","verify","close"]
+    },
+    {
+      "id": "route.code.architecture",
+      "match": { "taskKinds": ["architecture","架构","design","设计","选型"] },
+      "primary": "model.gpt55",
+      "fallback": "agent.plan",
+      "requiredSkills": ["skill.brainstorming","skill.writing-plans"],
+      "requiredSteps": ["analyze","design","plan","review","close"]
+    },
+    {
+      "id": "route.search.codebase",
+      "match": { "taskKinds": ["search","查找","定位","grep","搜索代码","探索"] },
+      "primary": "agent.explore",
+      "fallback": "builtin.Grep",
+      "requiredSteps": ["search","report"]
+    },
+    {
+      "id": "route.search.web",
+      "match": { "taskKinds": ["学习新知识","研究新技术","搜教程","查文档","deep-research"] },
+      "primary": "skill.self-learn",
+      "fallback": "skill.deep-research",
+      "requiredSteps": ["search","extract","verify","archive"]
+    },
+    {
+      "id": "route.web-search",
+      "match": { "taskKinds": ["web-search","搜索网页","查资料","fetch","搜一下"] },
+      "primary": "builtin.WebSearch",
+      "fallback": "skill.self-learn",
+      "requiredSteps": ["search","read","verify","synthesize"]
+    },
+    {
+      "id": "route.browser",
+      "match": { "taskKinds": ["browser","网页","浏览器","URL","web"] },
+      "primary": "mcp.playwright",
+      "fallback": "mcp.windows-cua",
+      "requiredSteps": ["navigate","snapshot","interact","screenshot"]
+    },
+    {
+      "id": "route.desktop",
+      "match": { "taskKinds": ["desktop","桌面","GUI","窗口","应用","点击"] },
+      "primary": "mcp.windows-cua",
+      "fallback": "script.desktop-action",
+      "requiredSteps": ["uia-dump","interact","screenshot-verify"]
+    },
+    {
+      "id": "route.vision",
+      "match": { "taskKinds": ["vision","截图","看图","OCR","识别","图片分析"] },
+      "primary": "model.doubao-vision",
+      "fallback": "model.gpt55",
+      "requiredSteps": ["screenshot","analyze","report"]
+    },
+    {
+      "id": "route.memory",
+      "match": { "taskKinds": ["memory","记忆","以前","经验","remember","recall"] },
+      "primary": "script.memory-search",
+      "fallback": "script.memory-search",
+      "requiredSteps": ["search","recall","apply"]
+    },
+    {
+      "id": "route.health",
+      "match": { "taskKinds": ["health","挂了","诊断","服务状态","check","doctor"] },
+      "primary": "script.ai-doctor",
+      "requiredSteps": ["check","diagnose","fix","verify"]
+    },
+    {
+      "id": "route.task-lifecycle",
+      "match": { "taskKinds": ["task-open","开始","start","new-task","启动","preflight","会话启动"] },
+      "primary": "script.ai-start",
+      "requiredSteps": ["classify","route","guard","execute","evidence","close"]
+    },
+    {
+      "id": "route.task-close",
+      "match": { "taskKinds": ["task-close","收尾","完成","finish","close","done"] },
+      "primary": "skill.finish-task",
+      "supportingTools": ["script.evidence-check","script.close-run"],
+      "requiredSteps": ["verify","evidence","close"]
+    },
+    {
+      "id": "route.failure",
+      "match": { "taskKinds": ["failure","失败","错误","mistake","lesson"] },
+      "primary": "script.new-failure",
+      "supportingTools": ["script.explain-failure","script.gen-lesson"],
+      "requiredSteps": ["record","analyze","lesson","archive"]
+    },
+    {
+      "id": "route.self-review",
+      "match": { "taskKinds": ["self-review","自我审查","自查","自审"] },
+      "primary": "model.gpt55",
+      "requiredSteps": ["audit-self","report-findings","fix","verify"]
+    },
+    {
+      "id": "route.remote",
+      "match": { "taskKinds": ["remote","远程","ToDesk","远程桌面"] },
+      "primary": "script.todesk-connect",
+      "supportingTools": ["script.activate-todesk","script.get-todesk-rect"],
+      "requiredSteps": ["connect","screenshot","operate"]
+    },
+    {
+      "id": "route.ops",
+      "match": { "taskKinds": ["backup","备份","cleanup","清理","maintenance","维护"] },
+      "primary": "script.backup-configs",
+      "supportingTools": ["script.cleanup-runs","script.weekly-health"],
+      "requiredSteps": ["dry-run","execute","verify"]
+    },
+    {
+      "id": "route.fast-local",
+      "match": { "taskKinds": ["json-fix","JSON","正则","小片段","快速提取","摘要"] },
+      "primary": "model.ollama-qwen",
+      "fallback": "builtin.PowerShell",
+      "requiredSteps": ["send","receive","verify"]
+    },
+    {
+      "id": "route.git",
+      "match": { "taskKinds": ["git","commit","push","PR","pull request","提交","merge","分支"] },
+      "primary": "builtin.Bash",
+      "fallback": "builtin.PowerShell",
+      "requiredSteps": ["diff","commit","push","pr"]
+    },
+    {
+      "id": "route.plan",
+      "match": { "taskKinds": ["plan","计划","设计","architecture","方案","选型"] },
+      "primary": "agent.plan",
+      "fallback": "model.gpt55",
+      "requiredSteps": ["research","design","plan","review"]
+    },
+    {
+      "id": "route.task",
+      "match": { "taskKinds": ["task","任务","todo","tracking","进度"] },
+      "primary": "builtin.TaskCreate",
+      "supportingTools": ["builtin.TaskUpdate","builtin.TaskList"],
+      "requiredSteps": ["create","track","update","complete"]
+    },
+    {
+      "id": "route.plan-mode",
+      "match": { "taskKinds": ["plan-mode","计划模式","先设计","先规划","EnterPlanMode"] },
+      "primary": "builtin.EnterPlanMode",
+      "supportingTools": ["builtin.ExitPlanMode"],
+      "requiredSteps": ["enter","research","design","exit","execute"]
+    },
+    {
+      "id": "route.worktree",
+      "match": { "taskKinds": ["worktree","隔离","独立分支","并行开发","EnterWorktree"] },
+      "primary": "builtin.EnterWorktree",
+      "supportingTools": ["builtin.ExitWorktree"],
+      "requiredSteps": ["create","isolate","work","verify","cleanup"]
+    },
+    {
+      "id": "route.workflow",
+      "match": { "taskKinds": ["workflow","多agent","并行","fan-out","批量处理","ultracode"] },
+      "primary": "builtin.Workflow",
+      "fallback": "agent.general-purpose",
+      "requiredSteps": ["decompose","orchestrate","verify","synthesize"]
+    },
+    {
+      "id": "route.cron",
+      "match": { "taskKinds": ["cron","定时","定期","每隔","schedule","remind"] },
+      "primary": "builtin.CronCreate",
+      "fallback": "builtin.ScheduleWakeup",
+      "requiredSteps": ["schedule","verify"]
+    },
+    {
+      "id": "route.monitor",
+      "match": { "taskKinds": ["monitor","监控","watch","tail","实时"] },
+      "primary": "builtin.Monitor",
+      "fallback": "builtin.Bash",
+      "requiredSteps": ["watch","alert","report"]
+    },
+    {
+      "id": "route.destructive",
+      "match": { "taskKinds": ["delete","删除","force-push","destroy","reset","prune"] },
+      "primary": "policy.deny-by-default",
+      "requiredSteps": ["confirm-with-boss","dry-run","security-gate","execute","verify"]
+    }
+  ],
+  "defaults": {
+    "primary": "model.gpt55",
+    "fallback": "model.glm52",
+    "requiredSteps": ["classify","route","execute","verify","close"]
+  }
+}

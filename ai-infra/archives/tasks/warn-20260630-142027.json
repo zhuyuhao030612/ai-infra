@@ -1,0 +1,6 @@
+{
+  "level": "warning",
+  "tool": "PowerShell",
+  "reason": "Warning: matched '\\.env\\b'. Proceeding but logged for audit.",
+  "ts": "2026-06-30T14:20:27.6838077+08:00"
+}

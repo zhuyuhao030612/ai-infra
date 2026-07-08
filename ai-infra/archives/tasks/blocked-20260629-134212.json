@@ -1,0 +1,6 @@
+{
+  "ts": "2026-06-29T13:42:12.8040507+08:00",
+  "reason": "L4 BLOCKED: agent-ask.ps1 sending sensitive path (matched 'settings\\.local\\.json'). External model must not receive credentials. Remove sensitive paths or use a local agent.",
+  "level": "blocked",
+  "tool": "PowerShell"
+}

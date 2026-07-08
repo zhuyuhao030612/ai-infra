@@ -1,0 +1,65 @@
+{
+  "runtime": "local-agent-eco-v2",
+  "version": "9.8",
+  "updated": "2026-06-28",
+  "entry": "pwsh -File D:\\Code\\ai-infra\\scripts\\ai-start.ps1 -Task '<task>'",
+  "tools": {
+    "state": [
+      {"name": "ai-doctor", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\ai-doctor.ps1", "risk": "none", "desc": "一屏系统总诊断"},
+      {"name": "state-sync", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\state-sync.ps1", "risk": "none", "desc": "更新 .ai-state/state.json"},
+      {"name": "weekly-health", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\weekly-health.ps1", "risk": "none", "desc": "周报"}
+    ],
+    "task": [
+      {"name": "ai-start", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\ai-start.ps1 -Task '...'", "risk": "none", "desc": "任务强制入口，自动分类+输出步骤"},
+      {"name": "new-run", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\new-run.ps1 -Task '...'", "risk": "none", "desc": "建立运行目录+context-pack"},
+      {"name": "lessons-search", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\lessons-search.ps1 -Task '...'", "risk": "none", "desc": "检索历史故障"},
+      {"name": "impact", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\impact.ps1 -Files '...'", "risk": "none", "desc": "改动影响分析"},
+      {"name": "close-run", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\close-run.ps1 -Run '...'", "risk": "none", "desc": "任务收口+final-report"}
+    ],
+    "verify": [
+      {"name": "verify-local-agent", "cmd": "pwsh -File D:\\Code\\local-agent\\scripts\\verify.ps1", "risk": "none", "desc": "Python Ruff+语法+健康"},
+      {"name": "verify-pipeline", "cmd": "pwsh -File D:\\Code\\ai-pipeline\\scripts\\verify.ps1", "risk": "none", "desc": "Node语法+Python语法"},
+      {"name": "smoke-all", "cmd": "pwsh -File D:\\Code\\ai-infra\\smoke\\run-all.ps1", "risk": "none", "desc": "能力回归6项+事件"},
+      {"name": "safety-smoke", "cmd": "pwsh -File D:\\Code\\ai-infra\\smoke\\test-safety.ps1", "risk": "none", "desc": "6项安全韧性"},
+      {"name": "gui-e2e", "cmd": "pwsh -File D:\\Code\\ai-infra\\smoke\\test-gui-chain.ps1", "risk": "none", "desc": "GUI全链路演练"}
+    ],
+    "deploy": [
+      {"name": "env-probe", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\env-probe.ps1", "risk": "none", "desc": "环境探测"},
+      {"name": "ps-guard", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\ps-guard.ps1 -Path '...'", "risk": "none", "desc": "PowerShell安检"},
+      {"name": "cleanup-runs", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\cleanup-runs.ps1 -DryRun", "risk": "medium", "desc": "清理过期文件"}
+    ],
+    "gpt": [
+      {"name": "gpt-ask", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\gpt-ask.ps1 -Prompt '...' -TimeoutSec 120", "risk": "none", "desc": "GPT-5.5安全封装"},
+      {"name": "gpt-server", "cmd": "node D:\\Code\\ai-pipeline\\gpt55-server.js", "risk": "medium", "desc": "启动GPT管道"}
+    ],
+    "gui": [
+      {"name": "gui-probe", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\gui-probe.ps1", "risk": "none", "desc": "GUI窗口探测+裁剪截图"},
+      {"name": "vision", "cmd": "node D:\\Code\\ai-pipeline\\vision.js <image> <prompt>", "risk": "none", "desc": "豆包Vision分析"},
+      {"name": "blocker-pack", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\blocker-pack.ps1 -Goal '...'", "risk": "none", "desc": "阻塞证据包"},
+      {"name": "boss-update", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\boss-update.ps1 -Status '...'", "risk": "none", "desc": "老板汇报"}
+    ],
+    "failure": [
+      {"name": "explain-failure", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\explain-failure.ps1 -Latest", "risk": "none", "desc": "最近失败自动诊断"},
+      {"name": "new-failure", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\new-failure.ps1 -Source '...' -ErrorType '...'", "risk": "none", "desc": "创建证据包"},
+      {"name": "gen-lesson", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\gen-lesson.ps1 -ErrorMessage '...'", "risk": "none", "desc": "生成经验草稿"}
+    ],
+    "lesson": [
+      {"name": "lessons-promote", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\lessons-promote.ps1 -Id 'L001'", "risk": "none", "desc": "提升为final"},
+      {"name": "lessons-deprecate", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\lessons-deprecate.ps1 -Id 'L001'", "risk": "none", "desc": "标记为废弃"},
+      {"name": "symbols-refresh", "cmd": "pwsh -File D:\\Code\\ai-infra\\scripts\\symbols-refresh.ps1", "risk": "none", "desc": "刷新代码图谱"},
+      {"name": "build-symbols", "cmd": "python D:\\Code\\ai-infra\\scripts\\build-symbols.py", "risk": "none", "desc": "重建代码图谱"}
+    ]
+  },
+  "apis": {
+    "local-agent": "http://127.0.0.1:9000",
+    "health": "GET /health",
+    "status": "GET /status (public) | GET /status/full (token)",
+    "token": "Bearer mMfhSNBUo_Bn8ZPoGmyaG3CLUPhBRCP9G0iLNfha_ns",
+    "hr-token": "cXQgi2pSJBnkVvEjN4B3xSn4MOM7wJ4a88JLOFDZGMo"
+  },
+  "playbooks": {
+    "deploy": "env-probe → ps-guard → dry-run → apply → verify",
+    "gui": "gui-probe → crop → vision → click → hash-verify",
+    "blocker": "失败2次 → blocker-pack → GPT → 替代路径"
+  }
+}

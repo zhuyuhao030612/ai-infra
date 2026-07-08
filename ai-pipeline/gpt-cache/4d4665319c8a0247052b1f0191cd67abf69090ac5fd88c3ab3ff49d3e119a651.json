@@ -1,0 +1,4 @@
+{
+  "timestamp": "2026-06-30T17:07:34.6007698+08:00",
+  "response": "管道通了。\n下一步建议先跑一轮真实长任务，确认这三点：\n\ngpt-ask.ps1 超时后能返回 pending + requestId\n\nfetch requestId 能拿到后续结果\n\ngpt55-ctl.ps1 status 能正确显示 ready/busy"
+}

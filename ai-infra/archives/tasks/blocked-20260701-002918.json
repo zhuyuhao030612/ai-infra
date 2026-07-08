@@ -1,0 +1,6 @@
+{
+  "level": "blocked",
+  "reason": "L3+/L4 blocked: matched 'C:\\\\'. Needs human confirmation or risk_ack=true from human.",
+  "tool": "Bash",
+  "ts": "2026-07-01T00:29:18.2195971+08:00"
+}

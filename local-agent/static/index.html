@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Local Agent</title>
+<style>
+/* ===== CSS Variables ===== */
+:root {
+  --bg-deep: #0a0a0f;
+  --bg-panel: #12121a;
+  --bg-card: #1a1a26;
+  --bg-card-hover: #1f1f2e;
+  --bg-input: #0d0d16;
+  --border: #252536;
+  --border-active: #4a4a6a;
+  --text: #c8c8d4;
+  --text-dim: #6a6a7a;
+  --text-bright: #e8e8f4;
+  --accent: #5b7fff;
+  --accent-glow: rgba(91,127,255,0.25);
+  --danger: #e0556a;
+  --danger-glow: rgba(224,85,106,0.3);
+  --success: #3ec97e;
+  --warning: #e0a855;
+  --font: -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --transition: 0.2s ease;
+}
+
+/* ===== Reset ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font);
+  background: var(--bg-deep);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== App Shell ===== */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ===== Titlebar ===== */
+.titlebar {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 42px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  user-select: none;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.titlebar-dots { display: flex; gap: 8px; -webkit-app-region: no-drag; }
+.titlebar-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  cursor: pointer; transition: var(--transition);
+}
+.titlebar-dot.red { background: #e0556a; }
+.titlebar-dot.yellow { background: #e0a855; }
+.titlebar-dot.green { background: #3ec97e; }
+.titlebar-title {
+  font-weight: 600; font-size: 13px; color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+.titlebar-spacer { flex: 1; }
+.titlebar-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-dim);
+}
+.status-dot { width: 7px; height: 7px; border-radius: 50%; }
+.status-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.status-dot.offline { background: var(--danger); }
+
+/* Operation mode toggle */
+.mode-toggle {
+  display: flex; align-items: center; gap: 8px;
+  -webkit-app-region: no-drag;
+}
+.mode-label { font-size: 11px; color: var(--text-dim); }
+.mode-switch {
+  position: relative; width: 40px; height: 22px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 11px; cursor: pointer; transition: var(--transition);
+}
+.mode-switch.active { background: var(--danger); border-color: var(--danger); box-shadow: 0 0 10px var(--danger-glow); }
+.mode-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--text); transition: var(--transition);
+}
+.mode-switch.active::after { left: 20px; background: #fff; }
+
+/* ===== Body ===== */
+.app-body { display: flex; flex: 1; overflow: hidden; }
+
+/* ===== Sidebar ===== */
+.sidebar {
+  width: 210px; background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  flex-shrink: 0; overflow-y: auto;
+}
+.sidebar-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-section:last-child { border-bottom: none; margin-top: auto; }
+.sidebar-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--text-dim); padding: 0 16px; margin-bottom: 6px;
+}
+.sidebar-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 16px; cursor: pointer; transition: var(--transition);
+  color: var(--text-dim); border-left: 2px solid transparent;
+  font-size: 13px;
+}
+.sidebar-item:hover { color: var(--text); background: var(--bg-card-hover); }
+.sidebar-item.active {
+  color: var(--text-bright); background: rgba(91,127,255,0.08);
+  border-left-color: var(--accent);
+}
+.sidebar-item .icon { width: 18px; text-align: center; font-size: 14px; }
+
+/* Health widget */
+.health-widget {
+  margin: 8px 16px; padding: 10px 12px;
+  background: var(--bg-card); border-radius: var(--radius);
+  font-size: 11px;
+}
+.health-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.health-row:last-child { margin-bottom: 0; }
+.health-val { color: var(--text-bright); font-weight: 500; }
+
+/* History mini-timeline */
+.history-mini {
+  max-height: 140px; overflow-y: auto; padding: 0 16px;
+  font-size: 11px;
+}
+.history-item {
+  padding: 4px 0; border-bottom: 1px solid var(--border);
+  color: var(--text-dim); display: flex; gap: 6px;
+}
+.history-time { color: var(--text-dim); flex-shrink: 0; }
+.history-action { color: var(--text); }
+.history-item.danger .history-action { color: var(--danger); }
+
+/* Token area */
+.token-area {
+  padding: 8px 16px;
+}
+.token-toggle {
+  font-size: 11px; color: var(--text-dim); cursor: pointer;
+}
+.token-toggle:hover { color: var(--text); }
+.token-form {
+  display: none; flex-direction: column; gap: 6px; margin-top: 6px;
+}
+.token-form.show { display: flex; }
+.token-input {
+  width: 100%; padding: 5px 8px; font-size: 11px; font-family: var(--font-mono);
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text);
+}
+.token-input:focus { outline: none; border-color: var(--accent); }
+.token-save {
+  padding: 4px 10px; font-size: 11px;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 4px; cursor: pointer;
+}
+
+/* ===== Main Content ===== */
+.main {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+/* ===== Panels ===== */
+.panel { display: none; flex-direction: column; gap: 16px; }
+.panel.active { display: flex; }
+
+.panel-header {
+  font-size: 18px; font-weight: 600; color: var(--text-bright);
+}
+.panel-desc {
+  font-size: 12px; color: var(--text-dim); margin-top: -12px;
+}
+
+/* ===== Cards ===== */
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px;
+  transition: var(--transition);
+}
+.card-header {
+  font-size: 12px; font-weight: 600; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;
+}
+
+/* ===== Screenshot area ===== */
+.screenshot-container {
+  position: relative; display: inline-block;
+  border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--border); background: #000;
+  max-width: 100%; cursor: crosshair;
+}
+.screenshot-container img { display: block; max-width: 100%; height: auto; }
+.screenshot-overlay {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+.coord-marker {
+  position: absolute; width: 12px; height: 12px;
+  border: 2px solid #ff4444; border-radius: 50%;
+  transform: translate(-50%, -50%); pointer-events: none;
+  box-shadow: 0 0 8px rgba(255,68,68,0.6);
+}
+.coord-label {
+  position: absolute; font-size: 10px; color: #fff;
+  background: rgba(0,0,0,0.8); padding: 2px 5px; border-radius: 3px;
+  pointer-events: none; white-space: nowrap;
+}
+
+/* Screenshot controls */
+.screenshot-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.screenshot-actions label { font-size: 11px; color: var(--text-dim); }
+
+/* ===== Forms ===== */
+.form-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.form-row label { font-size: 11px; color: var(--text-dim); min-width: 24px; }
+
+input, select, textarea {
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); padding: 7px 10px;
+  font-size: 13px; font-family: var(--font);
+  transition: var(--transition);
+}
+input:focus, select:focus, textarea:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+input.small { width: 70px; padding: 5px 8px; }
+input.danger-input:focus { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-glow); }
+
+/* ===== Buttons ===== */
+.btn {
+  padding: 7px 14px; border: none; border-radius: 6px;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: var(--transition); font-family: var(--font);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { box-shadow: 0 0 12px var(--accent-glow); }
+.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn-danger:hover { background: var(--danger); color: #fff; box-shadow: 0 0 12px var(--danger-glow); }
+.btn-danger.active-danger { background: var(--danger); color: #fff; animation: dangerPulse 1.5s infinite; }
+.btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+@keyframes dangerPulse {
+  0%, 100% { box-shadow: 0 0 4px var(--danger-glow); }
+  50% { box-shadow: 0 0 16px var(--danger-glow), 0 0 32px var(--danger-glow); }
+}
+
+/* ===== Process table ===== */
+.process-table-wrap { max-height: 500px; overflow-y: auto; }
+.process-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.process-table th {
+  text-align: left; padding: 8px 10px; font-weight: 600;
+  color: var(--text-dim); text-transform: uppercase; font-size: 10px;
+  letter-spacing: 0.5px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg-card); z-index: 1;
+}
+.process-table td {
+  padding: 6px 10px; border-bottom: 1px solid rgba(37,37,54,0.5);
+}
+.process-table tr:hover td { background: var(--bg-card-hover); }
+.process-search { width: 250px; }
+
+/* ===== Terminal ===== */
+.terminal {
+  background: #0a0a0a; border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 12px;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.6;
+  max-height: 400px; overflow-y: auto; white-space: pre-wrap;
+  color: #c0c0c0;
+}
+.terminal .cmd { color: var(--accent); }
+.terminal .out { color: #a0a0a0; }
+.terminal .err { color: var(--danger); }
+.terminal .exit-ok { color: var(--success); }
+.terminal .exit-fail { color: var(--danger); }
+.terminal .info { color: var(--text-dim); font-style: italic; }
+
+.terminal-input-row { display: flex; gap: 8px; }
+.terminal-input-row input { flex: 1; font-family: var(--font-mono); }
+
+/* ===== File preview ===== */
+.file-preview {
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
+  max-height: 400px; overflow-y: auto; white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ===== Search results ===== */
+.search-result {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: var(--transition);
+  font-size: 12px;
+}
+.search-result:hover { background: var(--bg-card-hover); }
+.search-result .name { color: var(--text-bright); flex: 1; }
+.search-result .meta { color: var(--text-dim); font-size: 11px; }
+
+/* ===== Toast ===== */
+.toast-container {
+  position: fixed; top: 52px; right: 16px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  padding: 10px 16px; border-radius: var(--radius);
+  font-size: 12px; animation: slideIn 0.3s ease;
+  max-width: 360px; box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  backdrop-filter: blur(12px);
+}
+.toast.success { background: rgba(62,201,126,0.15); border: 1px solid var(--success); color: var(--success); }
+.toast.error { background: rgba(224,85,106,0.15); border: 1px solid var(--danger); color: var(--danger); }
+.toast.info { background: rgba(91,127,255,0.12); border: 1px solid var(--accent); color: var(--accent); }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+
+/* ===== Modal ===== */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: none; align-items: center; justify-content: center;
+  z-index: 9998; backdrop-filter: blur(3px);
+}
+.modal-backdrop.show { display: flex; }
+.modal {
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 24px; min-width: 360px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+}
+.modal h3 { margin-bottom: 12px; color: var(--text-bright); }
+.modal p { margin-bottom: 16px; color: var(--text-dim); font-size: 13px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.modal-danger { border-color: var(--danger); }
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a4a; }
+
+/* ===== Loading spinner ===== */
+.spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Compact sidebar mode */
+@media (max-width: 900px) {
+  .sidebar { width: 56px; }
+  .sidebar-item { justify-content: center; padding: 10px; }
+  .sidebar-item span:not(.icon) { display: none; }
+  .sidebar-label { display: none; }
+  .health-widget, .history-mini, .token-area { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-dots">
+      <div class="titlebar-dot red" title="关闭"></div>
+      <div class="titlebar-dot yellow" title="最小化"></div>
+      <div class="titlebar-dot green" title="全屏"></div>
+    </div>
+    <span class="titlebar-title">Local Agent</span>
+    <div class="titlebar-spacer"></div>
+    <div class="mode-toggle">
+      <span class="mode-label">⚡操作模式</span>
+      <div class="mode-switch" id="modeSwitch" onclick="toggleOpMode()"></div>
+    </div>
+    <div class="titlebar-status">
+      <div class="status-dot online" id="statusDot"></div>
+      <span id="statusText">已连接</span>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">监视</div>
+        <div class="sidebar-item active" data-panel="desktop" onclick="switchPanel('desktop')">
+          <span class="icon">📸</span> <span>桌面</span>
+        </div>
+        <div class="sidebar-item" data-panel="process" onclick="switchPanel('process')">
+          <span class="icon">📋</span> <span>进程</span>
+        </div>
+        <div class="sidebar-item" data-panel="search" onclick="switchPanel('search')">
+          <span class="icon">🔍</span> <span>搜索</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">控制</div>
+        <div class="sidebar-item" data-panel="terminal" onclick="switchPanel('terminal')">
+          <span class="icon">▸</span> <span>终端</span>
+        </div>
+        <div class="sidebar-item" data-panel="files" onclick="switchPanel('files')">
+          <span class="icon">📁</span> <span>文件</span>
+        </div>
+        <div class="sidebar-item" data-panel="failures" onclick="switchPanel('failures')">
+          <span class="icon">⚠️</span> <span>失败</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="health-widget">
+          <div class="health-row"><span>Health</span><span class="health-val" id="healthStatus">🟢 OK</span></div>
+          <div class="health-row"><span>Uptime</span><span class="health-val" id="healthUptime">--</span></div>
+          <div class="health-row"><span>请求数</span><span class="health-val" id="healthReqs">0</span></div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">操作历史</div>
+        <div class="history-mini" id="historyList">
+          <div style="color:var(--text-dim)">暂无操作</div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="token-area">
+          <div class="token-toggle" onclick="toggleTokenForm()">🔑 Token 设置 ▸</div>
+          <div class="token-form" id="tokenForm">
+            <input class="token-input" id="tokenInput" type="password" placeholder="Agent Token">
+            <input class="token-input" id="hrTokenInput" type="password" placeholder="High-Risk Token">
+            <button class="btn btn-primary btn-sm token-save" onclick="saveTokens()">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main" id="mainContent">
+      <!-- Desktop Panel -->
+      <div class="panel active" id="panel-desktop">
+        <div class="panel-header">📸 桌面控制</div>
+        <div class="panel-desc">截图、点击、键盘输入</div>
+
+        <div class="card">
+          <div class="card-header">Live View</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button class="btn btn-primary" onclick="refreshScreenshot()">📷 截图</button>
+            <select id="screenshotInterval" onchange="toggleAutoRefresh()" style="font-size:12px;padding:5px 8px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text);">
+              <option value="0">不自动刷新</option>
+              <option value="3">每 3 秒</option>
+              <option value="5">每 5 秒</option>
+              <option value="10">每 10 秒</option>
+            </select>
+            <span style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;" id="screenSize"></span>
+          </div>
+          <div class="screenshot-container" id="screenshotContainer" onclick="onScreenshotClick(event)">
+            <img id="screenshotImg" src="" alt="点击截图按钮获取画面" style="min-width:200px;min-height:100px;">
+            <div class="screenshot-overlay" id="screenshotOverlay"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">Mouse</div>
+          <div class="form-row">
+            <label>X</label><input class="small" id="clickX" type="number" value="0">
+            <label>Y</label><input class="small" id="clickY" type="number" value="0">
+            <select id="clickButton" style="font-size:12px;padding:5px 8px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text);">
+              <option value="left">左键</option><option value="right">右键</option><option value="middle">中键</option>
+            </select>
+            <button class="btn btn-danger" id="clickBtn" onclick="doClick()" disabled>🖱 单击</button>
+            <button class="btn btn-danger" id="dblClickBtn" onclick="doDoubleClick()" disabled>🖱 双击</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">Keyboard</div>
+          <div class="form-row">
+            <input style="flex:1;" id="typeText" placeholder="输入文本...">
+            <button class="btn btn-danger" id="typeBtn" onclick="doType()" disabled>▶ 输入</button>
+          </div>
+          <div class="form-row" style="margin-top:8px;">
+            <input id="hotkeyInput" placeholder="如 ctrl+c" style="width:180px;">
+            <button class="btn btn-danger" id="hotkeyBtn" onclick="doHotkey()" disabled>快捷键</button>
+            <button class="btn btn-ghost btn-sm" onclick="quickHotkey('ctrl+c')">Ctrl+C</button>
+            <button class="btn btn-ghost btn-sm" onclick="quickHotkey('ctrl+v')">Ctrl+V</button>
+            <button class="btn btn-ghost btn-sm" onclick="quickHotkey('alt+tab')">Alt+Tab</button>
+            <button class="btn btn-ghost btn-sm" onclick="quickHotkey('win+d')">Win+D</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Process Panel -->
+      <div class="panel" id="panel-process">
+        <div class="panel-header">📋 进程管理</div>
+        <div class="panel-desc">查看和终止运行中的进程</div>
+        <div class="card">
+          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+            <input class="process-search" id="processSearch" placeholder="搜索进程名..." oninput="filterProcesses()">
+            <button class="btn btn-primary btn-sm" onclick="refreshProcesses()">🔄 刷新</button>
+            <span style="font-size:11px;color:var(--text-dim);" id="processCount"></span>
+          </div>
+          <div class="process-table-wrap">
+            <table class="process-table">
+              <thead><tr><th>PID</th><th>名称</th><th>路径</th><th>用户</th><th>状态</th><th></th></tr></thead>
+              <tbody id="processTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Panel -->
+      <div class="panel" id="panel-search">
+        <div class="panel-header">🔍 文件搜索</div>
+        <div class="panel-desc">按文件名或内容搜索</div>
+        <div class="card">
+          <div class="form-row" style="margin-bottom:12px;">
+            <input id="searchQuery" placeholder="搜索关键词..." style="flex:1;" onkeydown="if(event.key==='Enter')doSearch()">
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;">
+              <input type="checkbox" id="searchContent"> 搜索文件内容
+            </label>
+            <button class="btn btn-primary" onclick="doSearch()">🔍 搜索</button>
+          </div>
+          <div id="searchResults" style="max-height:500px;overflow-y:auto;"></div>
+        </div>
+        <div class="card" id="filePreviewCard" style="display:none;">
+          <div class="card-header">文件预览 <span id="previewPath" style="font-weight:400;"></span></div>
+          <div class="file-preview" id="filePreview"></div>
+        </div>
+      </div>
+
+      <!-- Terminal Panel -->
+      <div class="panel" id="panel-terminal">
+        <div class="panel-header">▸ 终端</div>
+        <div class="panel-desc">执行 Shell 命令</div>
+        <div class="card">
+          <div class="terminal" id="terminalOutput">
+            <div class="info">准备好执行命令。输入命令后按 Enter。</div>
+          </div>
+          <div class="terminal-input-row" style="margin-top:8px;">
+            <span style="color:var(--accent);font-family:var(--font-mono);font-size:12px;">PS&gt;</span>
+            <input id="terminalInput" placeholder="输入命令..." onkeydown="if(event.key==='Enter')doExec()">
+            <input class="small" id="execTimeout" value="30" title="超时秒数">
+            <button class="btn btn-danger" id="execBtn" onclick="doExec()" disabled>执行</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Files Panel -->
+      <div class="panel" id="panel-files">
+        <div class="panel-header">📁 文件操作</div>
+        <div class="panel-desc">读取和删除文件</div>
+        <div class="card">
+          <div class="form-row" style="margin-bottom:12px;">
+            <input id="filePath" placeholder="文件路径，如 D:\Code\test.txt" style="flex:1;" onkeydown="if(event.key==='Enter')doReadFile()">
+            <button class="btn btn-primary" onclick="doReadFile()">📖 读取</button>
+            <button class="btn btn-danger" id="deleteFileBtn" onclick="confirmDeleteFile()" disabled>🗑 删除</button>
+          </div>
+          <div class="file-preview" id="fileContent">
+            <div style="color:var(--text-dim);">输入路径后点击读取...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Failures Panel -->
+      <div class="panel" id="panel-failures">
+        <div class="panel-header">⚠️ 最近失败</div>
+        <div class="panel-desc">GPT/Playwright 失败证据包</div>
+        <div class="card">
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button class="btn btn-primary btn-sm" onclick="refreshFailures()">🔄 刷新</button>
+            <span style="font-size:11px;color:var(--text-dim);" id="failuresCount"></span>
+          </div>
+          <div id="failuresList" style="max-height:500px;overflow-y:auto;"></div>
+        </div>
+        <div class="card" id="failureDetailCard" style="display:none;">
+          <div class="card-header">证据详情 <span id="failureDetailTitle" style="font-weight:400;"></span></div>
+          <div class="file-preview" id="failureDetail" style="max-height:400px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Confirm Modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalBox">
+    <h3 id="modalTitle">确认操作</h3>
+    <p id="modalMsg"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn btn-danger" id="modalConfirmBtn" onclick="confirmModal()">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== State =====
+const STATE = {
+  token: '',
+  hrToken: '',
+  opMode: false,   // false=安全, true=操作模式
+  activePanel: 'desktop',
+  screenWidth: 1920,
+  screenHeight: 1080,
+  reqCount: 0,
+  serverStart: Date.now(),
+};
+
+// ===== Init =====
+function init() {
+  // Load tokens from sessionStorage
+  STATE.token = sessionStorage.getItem('agent_token') || '';
+  STATE.hrToken = sessionStorage.getItem('agent_hr_token') || '';
+  document.getElementById('tokenInput').value = STATE.token;
+  document.getElementById('hrTokenInput').value = STATE.hrToken;
+
+  updateDangerButtons();
+  if (STATE.token) {
+    // Token configured — load data
+    refreshScreenshot();
+    refreshProcesses();
+  } else {
+    showToast('请在侧栏底部 🔑 设置 Token（从 .env 复制）', 'info');
+  }
+  checkHealth();
+  setInterval(checkHealth, 30000);
+}
+
+// ===== Token =====
+function toggleTokenForm() {
+  document.getElementById('tokenForm').classList.toggle('show');
+}
+function saveTokens() {
+  STATE.token = document.getElementById('tokenInput').value.trim();
+  STATE.hrToken = document.getElementById('hrTokenInput').value.trim();
+  sessionStorage.setItem('agent_token', STATE.token);
+  sessionStorage.setItem('agent_hr_token', STATE.hrToken);
+  updateDangerButtons();
+  showToast('Token 已保存', 'success');
+  // Load data now that we have auth
+  refreshScreenshot();
+  refreshProcesses();
+}
+
+// ===== Panel switching =====
+function switchPanel(name) {
+  STATE.activePanel = name;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelector(`[data-panel="${name}"]`).classList.add('active');
+
+  if (name === 'desktop') refreshScreenshot();
+  if (name === 'process') refreshProcesses();
+}
+
+// ===== API client =====
+async function apiCall(path, body = null, requireHighRisk = false) {
+  const headers = {};
+  if (body !== null) headers['Content-Type'] = 'application/json';
+  if (STATE.token) headers['Authorization'] = `Bearer ${STATE.token}`;
+  if (requireHighRisk && STATE.hrToken) headers['X-High-Risk-Token'] = STATE.hrToken;
+
+  try {
+    const opts = { method: 'POST', headers };
+    if (body !== null) opts.body = JSON.stringify(body);
+    const res = await fetch(path, opts);
+    const json = await res.json();
+    STATE.reqCount++;
+    document.getElementById('healthReqs').textContent = STATE.reqCount;
+    addHistory(path.replace('/',''), json.success);
+    return json;
+  } catch (e) {
+    showToast('请求失败: ' + e.message, 'error');
+    addHistory(path.replace('/',''), false);
+    return { success: false, error: e.message };
+  }
+}
+
+// ===== Operation mode =====
+function toggleOpMode() {
+  STATE.opMode = !STATE.opMode;
+  const sw = document.getElementById('modeSwitch');
+  if (STATE.opMode) {
+    sw.classList.add('active');
+    showToast('⚡ 操作模式已开启 — 高危操作可用', 'info');
+  } else {
+    sw.classList.remove('active');
+    showToast('🔒 操作模式已关闭 — 仅监视功能可用', 'info');
+  }
+  updateDangerButtons();
+}
+
+function updateDangerButtons() {
+  const hasTokens = STATE.token && STATE.hrToken;
+  const enabled = hasTokens && STATE.opMode;
+
+  // Desktop
+  ['clickBtn','dblClickBtn','typeBtn','hotkeyBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.disabled = !enabled;
+      if (enabled) btn.classList.add('active-danger');
+      else btn.classList.remove('active-danger');
+    }
+  });
+
+  // Process kill buttons in table
+  document.querySelectorAll('.kill-btn').forEach(b => b.disabled = !enabled);
+
+  // Terminal
+  const execBtn = document.getElementById('execBtn');
+  if (execBtn) {
+    execBtn.disabled = !enabled;
+    if (enabled) execBtn.classList.add('active-danger');
+    else execBtn.classList.remove('active-danger');
+  }
+
+  // File delete
+  const delBtn = document.getElementById('deleteFileBtn');
+  if (delBtn) {
+    delBtn.disabled = !enabled;
+    if (enabled) delBtn.classList.add('active-danger');
+    else delBtn.classList.remove('active-danger');
+  }
+}
+
+// ===== Toast =====
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
+// ===== Modal =====
+let modalCallback = null;
+function showModal(title, msg, isDanger, cb) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalMsg').textContent = msg;
+  document.getElementById('modalBox').className = 'modal' + (isDanger ? ' modal-danger' : '');
+  document.getElementById('modalBackdrop').classList.add('show');
+  modalCallback = cb;
+}
+function closeModal() {
+  document.getElementById('modalBackdrop').classList.remove('show');
+  modalCallback = null;
+}
+function confirmModal() {
+  if (modalCallback) modalCallback();
+  closeModal();
+}
+
+// ===== History =====
+function addHistory(action, success) {
+  const list = document.getElementById('historyList');
+  const now = new Date();
+  const time = now.toTimeString().slice(0,8);
+  const cls = success ? '' : ' class="danger"';
+  const html = `<div${cls} class="history-item"><span class="history-time">${time}</span><span class="history-action">${action.slice(0,20)}</span></div>`;
+  // Keep max 50 items
+  const items = list.querySelectorAll('.history-item');
+  if (items.length > 49) items[items.length-1].remove();
+  if (list.querySelector('div[style]')) list.innerHTML = '';
+  list.insertAdjacentHTML('afterbegin', html);
+}
+
+// ===== Health =====
+async function checkHealth() {
+  try {
+    const res = await fetch('/health');
+    const json = await res.json();
+    document.getElementById('healthStatus').textContent = json.success ? '🟢 OK' : '🔴 FAIL';
+    const uptime = Math.round((Date.now() - STATE.serverStart) / 1000);
+    const h = Math.floor(uptime / 3600), m = Math.floor((uptime % 3600) / 60), s = uptime % 60;
+    document.getElementById('healthUptime').textContent = `${h}h ${m}m`;
+  } catch {
+    document.getElementById('healthStatus').textContent = '🔴 OFFLINE';
+    document.getElementById('statusDot').className = 'status-dot offline';
+    document.getElementById('statusText').textContent = '离线';
+  }
+}
+
+// ===== Desktop =====
+let autoRefreshTimer = null;
+let screenScaleX = 1, screenScaleY = 1;
+
+async function refreshScreenshot() {
+  const container = document.getElementById('screenshotContainer');
+  const img = document.getElementById('screenshotImg');
+  // Show loading
+  if (!img.src) img.alt = '加载中...';
+
+  try {
+    // Get screen size for calibration
+    const sizeRes = await apiCall('/desktop/screen_size', null);
+    if (sizeRes.success) {
+      STATE.screenWidth = sizeRes.data.width;
+      STATE.screenHeight = sizeRes.data.height;
+      document.getElementById('screenSize').textContent = `${STATE.screenWidth}×${STATE.screenHeight}`;
+    }
+
+    // Get screenshot via file save for full quality
+    const res = await apiCall('/desktop/screenshot/file?filename=ui-live.png', null);
+    if (res.success) {
+      img.src = '/screenshots/ui-live.png?t=' + Date.now();
+      img.onload = () => {
+        screenScaleX = STATE.screenWidth / img.clientWidth;
+        screenScaleY = STATE.screenHeight / img.clientHeight;
+      };
+    } else {
+      // Fallback to base64
+      const b64Res = await apiCall('/desktop/screenshot', null);
+      if (b64Res.success && b64Res.data && b64Res.data.base64) {
+        img.src = 'data:image/png;base64,' + b64Res.data.base64;
+      }
+    }
+  } catch (e) {
+    showToast('截图失败', 'error');
+  }
+}
+
+function toggleAutoRefresh() {
+  const interval = parseInt(document.getElementById('screenshotInterval').value);
+  if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+  if (interval > 0) {
+    autoRefreshTimer = setInterval(refreshScreenshot, interval * 1000);
+  }
+}
+
+function onScreenshotClick(e) {
+  const img = document.getElementById('screenshotImg');
+  const rect = img.getBoundingClientRect();
+  const imgX = Math.round((e.clientX - rect.left) * screenScaleX);
+  const imgY = Math.round((e.clientY - rect.top) * screenScaleY);
+  document.getElementById('clickX').value = imgX;
+  document.getElementById('clickY').value = imgY;
+
+  // Add marker
+  const overlay = document.getElementById('screenshotOverlay');
+  const mx = ((e.clientX - rect.left) / rect.width) * 100;
+  const my = ((e.clientY - rect.top) / rect.height) * 100;
+  overlay.innerHTML = `<div class="coord-marker" style="left:${mx}%;top:${my}%;"></div><div class="coord-label" style="left:${mx+1}%;top:${my-3}%;">${imgX},${imgY}</div>`;
+}
+
+async function doClick() {
+  if (!STATE.opMode) return;
+  const x = parseInt(document.getElementById('clickX').value);
+  const y = parseInt(document.getElementById('clickY').value);
+  const button = document.getElementById('clickButton').value;
+  const res = await apiCall('/desktop/click', { x, y, button, clicks: 1 }, true);
+  if (res.success) showToast(`点击 ${x},${y} ${button}`, 'success');
+  else showToast('点击失败: ' + res.error, 'error');
+}
+
+async function doDoubleClick() {
+  if (!STATE.opMode) return;
+  const x = parseInt(document.getElementById('clickX').value);
+  const y = parseInt(document.getElementById('clickY').value);
+  const button = document.getElementById('clickButton').value;
+  const res = await apiCall('/desktop/click', { x, y, button, clicks: 2 }, true);
+  if (res.success) showToast(`双击 ${x},${y}`, 'success');
+}
+
+async function doType() {
+  if (!STATE.opMode) return;
+  const text = document.getElementById('typeText').value;
+  if (!text) return;
+  const res = await apiCall('/desktop/type', { text }, true);
+  if (res.success) showToast(`已输入 ${text.length} 字符`, 'success');
+  else showToast('输入失败: ' + res.error, 'error');
+}
+
+async function doHotkey() {
+  if (!STATE.opMode) return;
+  const keys = document.getElementById('hotkeyInput').value.trim();
+  if (!keys) return;
+  const res = await apiCall(`/desktop/hotkey?keys=${encodeURIComponent(keys)}`, null, true);
+  if (res.success) showToast(`快捷键 ${keys}`, 'success');
+  else showToast('快捷键失败: ' + res.error, 'error');
+}
+
+function quickHotkey(keys) {
+  document.getElementById('hotkeyInput').value = keys;
+  doHotkey();
+}
+
+// ===== Process =====
+let allProcesses = [];
+
+async function refreshProcesses() {
+  const res = await apiCall('/process/list', null);
+  if (res.success && res.data) {
+    allProcesses = res.data.processes || [];
+    renderProcesses(allProcesses);
+  }
+}
+
+function renderProcesses(procs) {
+  const tbody = document.getElementById('processTableBody');
+  document.getElementById('processCount').textContent = `共 ${procs.length} 个进程`;
+  const enabled = STATE.token && STATE.hrToken && STATE.opMode;
+  tbody.innerHTML = procs.map(p => `
+    <tr>
+      <td>${p.pid}</td>
+      <td>${escHtml(p.name)}</td>
+      <td style="font-size:10px;color:var(--text-dim);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(p.exe||'')}">${escHtml(p.exe||'')}</td>
+      <td>${escHtml(p.username||'')}</td>
+      <td>${p.status}</td>
+      <td><button class="btn btn-danger btn-sm kill-btn" ${enabled?'':'disabled'} onclick="killProcess(${p.pid},'${escHtml(p.name)}')">终止</button></td>
+    </tr>
+  `).join('');
+}
+
+function filterProcesses() {
+  const q = document.getElementById('processSearch').value.toLowerCase();
+  const filtered = q ? allProcesses.filter(p => p.name.toLowerCase().includes(q)) : allProcesses;
+  renderProcesses(filtered);
+}
+
+function killProcess(pid, name) {
+  showModal('终止进程', `确定要终止 ${name} (PID: ${pid}) 吗？`, true, async () => {
+    const res = await apiCall('/process/kill', { pid, reason: '用户手动终止' }, true);
+    if (res.success) {
+      showToast(`已终止 PID ${pid}`, 'success');
+      refreshProcesses();
+    } else {
+      showToast('终止失败: ' + res.error, 'error');
+    }
+  });
+}
+
+// ===== Search =====
+async function doSearch() {
+  const query = document.getElementById('searchQuery').value.trim();
+  if (!query) return;
+  const searchContent = document.getElementById('searchContent').checked;
+  const res = await apiCall('/search', { query, max_results: 50, search_content: searchContent });
+  const container = document.getElementById('searchResults');
+  if (res.success && res.data) {
+    const results = res.data.results || [];
+    if (results.length === 0) {
+      container.innerHTML = '<div style="padding:16px;color:var(--text-dim);">无结果</div>';
+      return;
+    }
+    container.innerHTML = results.map(r => `
+      <div class="search-result" onclick="previewFile('${escAttr(r.path)}')">
+        <span>📄</span>
+        <span class="name">${escHtml(r.name)}</span>
+        <span class="meta">${formatSize(r.size)} · ${formatTime(r.modified)}</span>
+        <span class="meta" style="font-size:10px;">${escHtml(r.path)}</span>
+      </div>
+    `).join('');
+  } else {
+    container.innerHTML = '<div style="padding:16px;color:var(--danger);">搜索失败</div>';
+  }
+}
+
+async function previewFile(path) {
+  document.getElementById('filePreviewCard').style.display = 'flex';
+  document.getElementById('previewPath').textContent = path;
+  const preview = document.getElementById('filePreview');
+  preview.textContent = '加载中...';
+  const res = await apiCall('/files/read', { path });
+  if (res.success && res.data) {
+    preview.textContent = res.data.content;
+  } else {
+    preview.textContent = '读取失败: ' + (res.error || '未知错误');
+  }
+}
+
+// ===== Terminal =====
+const termHistory = [];
+let termHistoryIdx = -1;
+
+async function doExec() {
+  if (!STATE.opMode) return;
+  const cmd = document.getElementById('terminalInput').value.trim();
+  if (!cmd) return;
+  const timeout = parseInt(document.getElementById('execTimeout').value) || 30;
+
+  termHistory.push(cmd);
+  termHistoryIdx = termHistory.length;
+
+  const term = document.getElementById('terminalOutput');
+  term.innerHTML += `<div class="cmd">PS&gt; ${escHtml(cmd)}</div>`;
+  document.getElementById('terminalInput').value = '';
+
+  const res = await apiCall('/exec', { command: cmd, timeout }, true);
+  if (res.success && res.data) {
+    const out = res.data.stdout || '';
+    const err = res.data.stderr || '';
+    if (out) term.innerHTML += `<div class="out">${escHtml(out)}</div>`;
+    if (err) term.innerHTML += `<div class="err">${escHtml(err)}</div>`;
+    const cls = res.data.exit_code === 0 ? 'exit-ok' : 'exit-fail';
+    term.innerHTML += `<div class="${cls}">Exit: ${res.data.exit_code}</div>`;
+  } else {
+    term.innerHTML += `<div class="err">${escHtml(res.error || '执行失败')}</div>`;
+  }
+  term.scrollTop = term.scrollHeight;
+}
+
+// Terminal input: up/down for history
+document.getElementById('terminalInput').addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (termHistoryIdx > 0) {
+      termHistoryIdx--;
+      this.value = termHistory[termHistoryIdx];
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (termHistoryIdx < termHistory.length - 1) {
+      termHistoryIdx++;
+      this.value = termHistory[termHistoryIdx];
+    } else {
+      termHistoryIdx = termHistory.length;
+      this.value = '';
+    }
+  }
+});
+
+// ===== Files =====
+async function doReadFile() {
+  const path = document.getElementById('filePath').value.trim();
+  if (!path) return;
+  const preview = document.getElementById('fileContent');
+  preview.textContent = '加载中...';
+  const res = await apiCall('/files/read', { path });
+  if (res.success && res.data) {
+    const maxShow = 50000;
+    const content = res.data.content;
+    preview.textContent = content.length > maxShow
+      ? content.slice(0, maxShow) + '\n\n... (内容过长，已截断)'
+      : content;
+    document.getElementById('deleteFileBtn').disabled = !(STATE.token && STATE.hrToken && STATE.opMode);
+  } else {
+    preview.textContent = '读取失败: ' + (res.error || '未知错误');
+  }
+}
+
+function confirmDeleteFile() {
+  const path = document.getElementById('filePath').value.trim();
+  if (!path) return;
+  showModal('删除文件', `确定将 ${path} 移入回收站吗？`, true, async () => {
+    const res = await apiCall('/files/delete', { path }, true);
+    if (res.success) {
+      showToast('已移入回收站', 'success');
+      document.getElementById('fileContent').textContent = '文件已删除。';
+      document.getElementById('deleteFileBtn').disabled = true;
+    } else {
+      showToast('删除失败: ' + res.error, 'error');
+    }
+  });
+}
+
+// ===== Utils =====
+function escHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+function escAttr(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+function formatSize(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const units = ['B','KB','MB','GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
+}
+function formatTime(ts) {
+  if (!ts) return '';
+  return new Date(ts * 1000).toLocaleString('zh-CN');
+}
+
+// ===== Failures =====
+async function refreshFailures() {
+  const container = document.getElementById('failuresList');
+  container.innerHTML = '<div class="spinner"></div>';
+  const res = await apiCall('/failures/recent', null);
+  if (res.success && res.data) {
+    const failures = res.data.failures || [];
+    document.getElementById('failuresCount').textContent = `共 ${failures.length} 条`;
+    if (failures.length === 0) {
+      container.innerHTML = '<div style="padding:16px;color:var(--text-dim);">暂无失败记录 — 系统健康 🟢</div>';
+      return;
+    }
+    container.innerHTML = failures.map(f => `
+      <div class="search-result" style="cursor:pointer;" onclick="viewFailure('${f.id}')">
+        <span>⚠️</span>
+        <span class="name">${escHtml(f.error_type||'unknown')}</span>
+        <span class="meta">${escHtml(f.summary||'').substring(0,60)}</span>
+        <span class="meta">${(f.ts||'').substring(0,19)}</span>
+      </div>
+    `).join('');
+  } else {
+    container.innerHTML = '<div style="padding:16px;color:var(--danger);">加载失败</div>';
+  }
+}
+
+async function viewFailure(id) {
+  const card = document.getElementById('failureDetailCard');
+  card.style.display = 'flex';
+  document.getElementById('failureDetailTitle').textContent = id;
+
+  const detail = document.getElementById('failureDetail');
+  detail.textContent = '加载中...';
+
+  const res = await apiCall(`/failures/${id}/manifest`, null);
+  if (res.success && res.data) {
+    const m = res.data;
+    let html = `<b>时间:</b> ${escHtml(m.ts||'')}\n<b>来源:</b> ${escHtml(m.source||'')}\n<b>类型:</b> ${escHtml(m.error_type||'')}\n<b>摘要:</b> ${escHtml(m.summary||'')}\n\n<b>Artifacts:</b>\n`;
+    if (m.artifacts) {
+      for (const [k,v] of Object.entries(m.artifacts)) {
+        html += `  📄 <a href="#" onclick="viewArtifact('${id}','${v}');return false;">${v}</a>\n`;
+      }
+    }
+    detail.innerHTML = `<pre style="white-space:pre-wrap;">${html}</pre>`;
+  } else {
+    detail.textContent = '加载 manifest 失败';
+  }
+}
+
+async function viewArtifact(fid, name) {
+  const detail = document.getElementById('failureDetail');
+  detail.textContent = '加载中...';
+  const res = await apiCall(`/failures/${fid}/artifact/${name}`, null);
+  if (res.success && res.data) {
+    if (res.data.type === 'text') {
+      detail.textContent = res.data.content || '(空)';
+    } else {
+      detail.innerHTML = `<a href="/failures-files/${fid}/${name}" target="_blank">📷 查看图片</a>`;
+    }
+  } else {
+    detail.textContent = '加载 artifact 失败: ' + (res.error||'');
+  }
+}
+
+// ===== Start =====
+init();
+</script>
+</body>
+</html>

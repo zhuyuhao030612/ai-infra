@@ -1,0 +1,6 @@
+{
+  "reason": "Warning: matched '\\.env\\b'. Proceeding but logged for audit.",
+  "ts": "2026-07-01T02:28:01.1074626+08:00",
+  "tool": "Bash",
+  "level": "warning"
+}

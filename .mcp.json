@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "windows-computer-use": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "--directory",
+        "D:/Code/windows-computer-use-mcp",
+        "run",
+        "-m",
+        "windows_computer_use_mcp"
+      ],
+      "env": {
+        "WINDOWS_COMPUTER_USE_MCP_BYPASS_HITL": "1"
+      }
+    },
+    "local-memory": {
+      "type": "stdio",
+      "command": "D:/python3.12.10/python.exe",
+      "args": ["D:/Code/mem0-server/local-memory.py"],
+      "env": {
+        "MEM0_USER_ID": "boss"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--browser", "chromium"
+      ],
+      "env": {
+        "PLAYWRIGHT_MCP_HEADLESS": "0"
+      }
+    }
+  }
+}

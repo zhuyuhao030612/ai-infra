@@ -1,0 +1,5 @@
+skill: superpowers
+url: https://github.com/obra/superpowers.git
+commit: 896224c4b1879920ab573417e68fd51d2ccc9072
+date: 2026-06-18 15:24:54 -0700
+clone_date: 2026-06-28 08:02:01

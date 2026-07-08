@@ -1,0 +1,6 @@
+{
+  "tool": "Bash",
+  "reason": "L3+/L4 blocked: matched 'password='. Needs human confirmation or risk_ack=true from human.",
+  "level": "blocked",
+  "ts": "2026-06-30T06:37:25.2818230+08:00"
+}

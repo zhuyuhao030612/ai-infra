@@ -1,0 +1,92 @@
+{
+  "summary": {
+    "critical_down": 0,
+    "down": 0,
+    "ok": 16
+  },
+  "health": "HEALTHY",
+  "elapsed_ms": 8791.0,
+  "capabilities": {
+    "playwright_mcp": {
+      "latency_ms": 7,
+      "critical": false,
+      "status": "OK"
+    },
+    "fpcalc": {
+      "latency_ms": 14,
+      "critical": false,
+      "status": "OK"
+    },
+    "powershell": {
+      "latency_ms": 7,
+      "critical": true,
+      "status": "OK"
+    },
+    "web_search": {
+      "latency_ms": 0,
+      "critical": false,
+      "status": "OK"
+    },
+    "pyautogui": {
+      "latency_ms": 166,
+      "critical": false,
+      "status": "OK"
+    },
+    "ffprobe": {
+      "latency_ms": 24,
+      "critical": true,
+      "status": "OK"
+    },
+    "ffmpeg": {
+      "latency_ms": 24,
+      "critical": true,
+      "status": "OK"
+    },
+    "python": {
+      "latency_ms": 26,
+      "critical": true,
+      "status": "OK"
+    },
+    "node": {
+      "latency_ms": 35,
+      "critical": false,
+      "status": "OK"
+    },
+    "rapidocr": {
+      "latency_ms": 434,
+      "critical": false,
+      "status": "OK"
+    },
+    "pywinauto": {
+      "latency_ms": 209,
+      "critical": false,
+      "status": "OK"
+    },
+    "piper_model": {
+      "latency_ms": 9,
+      "critical": true,
+      "status": "OK"
+    },
+    "doubao_vision": {
+      "latency_ms": 4270,
+      "critical": false,
+      "status": "OK"
+    },
+    "desktop_action": {
+      "latency_ms": 2872,
+      "critical": true,
+      "status": "OK"
+    },
+    "screenshot": {
+      "latency_ms": 398,
+      "critical": true,
+      "status": "OK"
+    },
+    "gpt55_pipeline": {
+      "latency_ms": 7,
+      "critical": false,
+      "status": "OK"
+    }
+  },
+  "timestamp": "2026-06-29T05:39:37.5431055+08:00"
+}
