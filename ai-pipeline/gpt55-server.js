@@ -56,12 +56,12 @@ function parseSSE(text){
       try{let d=JSON.parse(json);
         if(d.conversation_id)convId=d.conversation_id;
         // 流式追加
-        if(d.o==='append'&&typeof d.v==='string'&&d.p?.includes('parts'))result+=d.v;
+        if(typeof d.v==='string'&&d.v.length>0)result+=d.v;
         // 完整 assistant 消息（add/replace/patch）
         let msg=d.v?.message||d.message;
         if(msg&&msg.author?.role==='assistant'&&msg.content?.parts&&msg.status!=='finished_successfully')continue;
         if(msg&&msg.author?.role==='assistant'&&msg.content?.parts){
-          let p=msg.content.parts.filter(x=>typeof x==='string');if(p.length)result=p.join('');
+          let p=msg.content.parts.filter(x=>typeof x==='string');if(p.length&&p.join('').length>result.length)result=p.join('');
         }
       }catch{}
     }
@@ -83,10 +83,11 @@ async function streamChat(prompt,model,write){
   if(sessionConvId)msgBody.conversation_id=sessionConvId;
 
   write({type:'status',state:'sending'});
-
+  
   let url=CHAT_URL+'/backend-api/f/conversation';
   let headers={'Cookie':cookieHeader(),'Content-Type':'application/json; charset=utf-8','Accept':'text/event-stream','Origin':CHAT_URL,'Referer':CHAT_URL};
   let resp=await fetch(url,{method:'POST',headers,body:Buffer.from(JSON.stringify(msgBody),'utf8')});
+  
   if(!resp.ok)throw Error(`${resp.status}: backend error`);
 
   let reader=resp.body.getReader();
@@ -110,9 +111,22 @@ async function streamChat(prompt,model,write){
         if(!json||json==='[DONE]'){isDone=true;continue}
         try{let d=JSON.parse(json);
           if(d.conversation_id)convId=d.conversation_id;
-          if(d.o==='append'&&typeof d.v==='string'&&d.p?.includes('parts'))fullText+=d.v;
+          // Log ALL events with their structure
+
+          // Capture ALL text delta events — first token has o:'append' + p,
+          // but subsequent tokens are bare {v:"text"} with no o or p field.
+          if(typeof d.v==='string'&&d.v.length>0){
+            fullText+=d.v;
+          }
           let msg=d.v?.message||d.message;
-          if(msg&&msg.author?.role==='assistant'&&msg.content?.parts){let p=msg.content.parts.filter(x=>typeof x==='string');if(p.length)fullText=p.join('')}
+          if(msg&&msg.author?.role==='assistant'&&msg.content?.parts&&msg.status!=='finished_successfully'){
+            continue;
+          }
+          if(msg&&msg.author?.role==='assistant'&&msg.content?.parts){
+            let p=msg.content.parts.filter(x=>typeof x==='string');
+            // Only use message parts if they're more complete than accumulated deltas
+            if(p.length && p.join('').length > fullText.length) fullText=p.join('');
+          }
         }catch{}
       }
       if(isDone){streamEnded=true;break}
@@ -129,7 +143,6 @@ async function streamChat(prompt,model,write){
   if(convId)sessionConvId=convId;
   let final=(fullText||'').replace(/【完成】/g,'').replace(/【完$/,'').replace(/【$/,'').replace(/【成】/g,'').trim()||null;
   write({type:'done',text:final,conversationId:convId||sessionConvId});
-  console.log('[api] streaming done:',(final||'').length,'chars');
   return{text:final,conversationId:convId||sessionConvId};
 }
 
