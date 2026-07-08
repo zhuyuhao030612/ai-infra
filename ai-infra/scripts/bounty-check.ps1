@@ -6,7 +6,16 @@ $headers = @{"Accept"="application/vnd.github.v3+json";"Authorization"="Bearer $
 
 Write-Host "=== ACTIVE PRs ==="
 # Add new PRs here as: @{Repo="owner/repo";Num=123}
-$activePRs = @(@{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=68;Amount="$35"},@{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=69;Amount="$18"})
+$activePRs = @(
+  @{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=68;Amount="$35"},
+  @{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=69;Amount="$18"},
+  @{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=70;Amount="$35"},
+  @{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=71;Amount="$16"},
+  @{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=72;Amount="$6"},
+  @{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=73;Amount="$5"},
+  @{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=76;Amount="$5"},
+  @{Repo="cuentaprueba244w-dotcom/TentOfTrials";Num=77;Amount="$0"}
+)
 foreach($pr in $activePRs){
   $url = "https://api.github.com/repos/$($pr.Repo)/pulls/$($pr.Num)"
   try {
