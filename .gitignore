@@ -78,3 +78,16 @@ windows-computer-use-mcp/build/
 # Database files
 *.sqlite
 *.sqlite3
+
+# Backups
+.backups/
+ai-infra/bin/*.bak*
+
+# External repos (managed independently)
+TentOfTrials-bounty/
+windows-computer-use-mcp/
+
+# Runtime data (large, not source)
+ai-pipeline/data/
+AppData/
+worktrees/
