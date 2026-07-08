@@ -52,7 +52,7 @@ switch ($Command) {
 
     # Step 3: check critical services
     Write-Host "[3/4] Service check..."
-    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "  GPT-5.5: $($h.status)" } catch { Write-Host "  WARN GPT-5.5: down" }
+    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "  GPT-5.5: $(if($h.alive){'up'}else{'unknown'})" } catch { Write-Host "  WARN GPT-5.5: down" }
     try { Invoke-RestMethod 'http://127.0.0.1:11434/api/tags' -TimeoutSec 2 | Out-Null; Write-Host "  Ollama: up" } catch { Write-Host "  WARN Ollama: down" }
 
     # Step 4: refresh volatile cache layer (prompt caching optimization)
@@ -110,7 +110,7 @@ switch ($Command) {
       }
     }
 
-    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "OK   GPT-5.5 server: $($h.status)" } catch { Write-Host "WARN GPT-5.5 server not responding"; $warnings++ }
+    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "OK   GPT-5.5 server: $(if($h.alive){'up'}else{'unknown'})" } catch { Write-Host "WARN GPT-5.5 server not responding"; $warnings++ }
     try { $o = Invoke-RestMethod 'http://127.0.0.1:11434/api/tags' -TimeoutSec 3; Write-Host "OK   Ollama: $($o.models.Count) models" } catch { Write-Host "WARN Ollama not responding"; $warnings++ }
 
     $res = Get-Resources
@@ -267,7 +267,7 @@ switch ($Command) {
     foreach ($f in @('resources.json','capabilities.json','routes.json')) {
       $p = Join-Path $Registry $f; $s = if (Test-Path $p) { "OK" } else { "MISSING" }; Write-Host "  $f : $s"
     }
-    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "GPT-5.5: busy=$($h.busy) $($h.status)" } catch { Write-Host "GPT-5.5: DOWN" }
+    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "GPT-5.5: alive=$($h.alive) busy=$($h.busy)" } catch { Write-Host "GPT-5.5: DOWN" }
     try { $o = Invoke-RestMethod 'http://127.0.0.1:11434/api/tags' -TimeoutSec 3; Write-Host "Ollama: $($o.models.Count) models" } catch { Write-Host "Ollama: DOWN" }
   }
 

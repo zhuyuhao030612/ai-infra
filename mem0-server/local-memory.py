@@ -4,6 +4,7 @@ import os, sys, json
 from mem0 import Memory
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
+from mcp.types import Tool
 
 CONFIG = {
     "vector_store": {"provider": "chroma", "config": {"collection_name": "claude_mem", "path": os.path.join(os.path.dirname(__file__), "chroma_data")}},
@@ -17,10 +18,10 @@ server = Server("local-memory")
 @server.list_tools()
 async def list_tools():
     return [
-        {"name": "add_memory", "description": "Add a memory. Args: content (str), tags (list[str], optional)", "inputSchema": {"type": "object", "properties": {"content": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}},
-        {"name": "search_memory", "description": "Search memories semantically. Args: query (str), limit (int, default 5)", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "integer", "default": 5}}, "required": ["query"]}},
-        {"name": "get_all", "description": "Get all stored memories. Args: limit (int, default 50)", "inputSchema": {"type": "object", "properties": {"limit": {"type": "integer", "default": 50}}}},
-        {"name": "stats", "description": "Show memory statistics", "inputSchema": {"type": "object", "properties": {}}},
+        Tool(name="add_memory", description="Add a memory. Args: content (str), tags (list[str], optional)", inputSchema={"type": "object", "properties": {"content": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}}, "required": ["content"]}),
+        Tool(name="search_memory", description="Search memories semantically. Args: query (str), limit (int, default 5)", inputSchema={"type": "object", "properties": {"query": {"type": "string"}, "limit": {"type": "integer", "default": 5}}, "required": ["query"]}),
+        Tool(name="get_all", description="Get all stored memories. Args: limit (int, default 50)", inputSchema={"type": "object", "properties": {"limit": {"type": "integer", "default": 50}}}),
+        Tool(name="stats", description="Show memory statistics", inputSchema={"type": "object", "properties": {}}),
     ]
 
 @server.call_tool()
