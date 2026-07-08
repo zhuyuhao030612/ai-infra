@@ -289,7 +289,9 @@ switch ($Command) {
   'crystallize' {
     $dry = $Arguments -contains '-DryRun' -or $Arguments -contains '--dry-run'
     $force = $Arguments -contains '-Force' -or $Arguments -contains '--force'
-    $crystallizeScript = Join-Path (Join-Path $Root 'scripts') 'skill-crystallize.ps1'
+    $jsonOut = $Arguments -contains '-Json' -or $Arguments -contains '--json'
+    $python = 'D:/python3.12.10/python.exe'
+    $crystallizePy = Join-Path (Join-Path $Root 'scripts') 'skill-crystallize.py'
 
     # Extract -ExecutionLogFile or -ExecutionLog value
     $logFile = ''
@@ -298,7 +300,6 @@ switch ($Command) {
     if (-not $logFile) {
       $logIdx = [Array]::IndexOf($Arguments, '-ExecutionLog')
       if ($logIdx -ge 0 -and $logIdx + 1 -lt $Arguments.Count) {
-        # Write to temp file
         $tempFile = Join-Path (Join-Path $Root 'runtime') 'crystallize-exec-log.tmp.txt'
         $Arguments[$logIdx + 1] | Set-Content -LiteralPath $tempFile -Encoding UTF8
         $logFile = $tempFile
@@ -308,28 +309,26 @@ switch ($Command) {
     # Everything else is task description
     $taskParts = @()
     for ($i = 0; $i -lt $Arguments.Count; $i++) {
-      if ($Arguments[$i] -in @('-DryRun','--dry-run','-Force','--force')) { continue }
+      if ($Arguments[$i] -in @('-DryRun','--dry-run','-Force','--force','-Json','--json')) { continue }
       if ($Arguments[$i] -in @('-ExecutionLog','-ExecutionLogFile')) { $i++; continue }
       $taskParts += $Arguments[$i]
     }
     $taskDesc = $taskParts -join ' '
-    if (-not $taskDesc) { Write-Host "Usage: ai crystallize '<task description>' [-ExecutionLogFile <file>] [-DryRun] [-Force]"; Write-Host "Crystallize a complex task into a reusable SKILL.md."; exit 1 }
+    if (-not $taskDesc) { Write-Host "Usage: ai crystallize '<task description>' -ExecutionLogFile <file> [-DryRun] [-Force]"; Write-Host "Crystallize a complex task into a reusable SKILL.md via GPT-5.5."; exit 1 }
 
     if (-not $logFile) {
       Write-Host "Usage: ai crystallize '<task>' -ExecutionLogFile <file> [-DryRun] [-Force]"
       Write-Host "First write execution log to a file, then pass it with -ExecutionLogFile."
       exit 1
     }
-    # Note: can't use splatting for switch params reliably in this pwsh version
-    if ($dry -and $force) {
-      & $crystallizeScript -TaskDescription $taskDesc -ExecutionLogFile $logFile -DryRun -Force
-    } elseif ($dry) {
-      & $crystallizeScript -TaskDescription $taskDesc -ExecutionLogFile $logFile -DryRun
-    } elseif ($force) {
-      & $crystallizeScript -TaskDescription $taskDesc -ExecutionLogFile $logFile -Force
-    } else {
-      & $crystallizeScript -TaskDescription $taskDesc -ExecutionLogFile $logFile
-    }
+
+    # Build Python CLI args
+    $pyArgs = @($crystallizePy, $taskDesc, '--exec-log', $logFile)
+    if ($dry) { $pyArgs += '--dry-run' }
+    if ($force) { $pyArgs += '--force' }
+    if ($jsonOut) { $pyArgs += '--json' }
+
+    & $python $pyArgs
     exit $LASTEXITCODE
   }
 

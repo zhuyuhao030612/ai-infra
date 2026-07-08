@@ -98,6 +98,7 @@ windows-computer-use-mcp/
 
 # Runtime data (large, not source)
 ai-pipeline/data/
+ai-pipeline/gpt-cache/
 AppData/
 worktrees/
 data/
