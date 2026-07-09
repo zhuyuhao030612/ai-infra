@@ -13,8 +13,10 @@ _DEFAULTS = {"local-agent-mvp-token-change-me", "high-risk-confirm-token-change-
 
 
 def _configured(secret: str, name: str) -> None:
-    if settings.require_configured_tokens and secret in _DEFAULTS:
-        raise HTTPException(status_code=503, detail=f"{name} is not configured securely")
+    # Always reject default tokens — they are never safe in production.
+    # The ALLOW_DEFAULT_AGENT_TOKENS override has been removed as a hardening measure (P2-1).
+    if secret in _DEFAULTS:
+        raise HTTPException(status_code=503, detail=f"{name} is not configured securely — default tokens are rejected.")
 
 
 def _extract_bearer(authorization: str) -> str:

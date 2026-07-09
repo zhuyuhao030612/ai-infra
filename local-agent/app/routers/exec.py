@@ -82,7 +82,12 @@ def execute_command(
             if not working_dir.is_dir():
                 return APIResponse(request_id=rid, success=False, error=make_error(ErrorCode.INVALID_INPUT, "working_dir must be a directory"))
         if _DESTRUCTIVE.search(req.command):
-            audit_log(rid, "exec_destructive_command", {"run_id": req.run_id, "command": req.command, "cwd": str(working_dir or "")})
+            audit_log(rid, "exec_destructive_command", {"run_id": req.run_id, "command": req.command, "cwd": str(working_dir or "")}, status="blocked")
+            return APIResponse(
+                request_id=rid,
+                success=False,
+                error=make_error(ErrorCode.SECURITY_BLOCKED, "Destructive command blocked by security filter", "The command matches a destructive pattern. Use a non-destructive alternative."),
+            )
 
         audit_log(rid, "exec_request", {"run_id": req.run_id, "command": req.command, "timeout": timeout, "cwd": str(working_dir or "")})
         result = subprocess.run(

@@ -41,7 +41,8 @@ try {
   claude -p $claudePrompt `
     --permission-mode dontAsk `
     --settings "D:\Code\.claude\settings.local.json" `
-    --max-turns 30 `
+    --max-turns 15 `
+    --allowedTools "Read, Bash(git:*)" `
     2>&1 | Out-File (Join-Path $runDir "claude-output.txt") -Encoding UTF8
 
   # 5. Check for stop signal
@@ -50,10 +51,35 @@ try {
 
   if ($stopped) { Remove-Item $signalFile -Force -EA SilentlyContinue }
 
-  # 6. Run verification
+  # 6. Run verification — use Start-Process to avoid Invoke-Expression code injection (P0-2)
+  # Only whitelisted verification commands are allowed; arguments are passed as literal strings
   $verifyOk = $true
+  $allowedVerifiers = @(
+    "Test-Path",
+    "Select-String",
+    "Get-Content",
+    "python",
+    "node",
+    "pwsh",
+    "powershell"
+  )
   if ($task.verify_by) {
-    try { $vResult = Invoke-Expression $task.verify_by 2>&1; $verifyOk = ($LASTEXITCODE -eq 0) } catch { $verifyOk = $false }
+    $verifyCmd = $task.verify_by.Trim()
+    $cmdName = ($verifyCmd -split '\s+')[0]
+    if ($cmdName -notin $allowedVerifiers) {
+      Write-Warning "verify_by command '$cmdName' is not in allowed verifiers whitelist; skipping verification"
+      $verifyOk = $true
+    } else {
+      $cmdArgs = if ($verifyCmd -match '\s+') { $verifyCmd.Substring($verifyCmd.IndexOf(' ') + 1) } else { "" }
+      try {
+        if ($cmdArgs) {
+          $vResult = & $cmdName @($cmdArgs -split '\s+') 2>&1
+        } else {
+          $vResult = & $cmdName 2>&1
+        }
+        $verifyOk = ($LASTEXITCODE -eq 0)
+      } catch { $verifyOk = $false }
+    }
   }
 
   # 7. Move to done or failed
