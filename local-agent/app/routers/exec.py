@@ -22,7 +22,8 @@ _DESTRUCTIVE = re.compile(
     r"\b("
     r"rm\s+-rf|Remove-Item\b|del\b|erase\b|rmdir\b|format\b|diskpart\b|"
     r"shutdown\b|Restart-Computer\b|Stop-Computer\b|Stop-Process\b|kill\b|taskkill\b|"
-    r"reg\s+delete|Set-ExecutionPolicy\b|icacls\b|takeown\b"
+    r"reg\s+delete|Set-ExecutionPolicy\b|icacls\b|takeown\b|"
+    r"git\s+reset\b"
     r")",
     re.I,
 )
