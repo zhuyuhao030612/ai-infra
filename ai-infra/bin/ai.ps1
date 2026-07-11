@@ -52,7 +52,7 @@ switch ($Command) {
 
     # Step 3: check critical services
     Write-Host "[3/4] Service check..."
-    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "  GPT-5.5: $($h.status)" } catch { Write-Host "  WARN GPT-5.5: down" }
+    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "  GPT-5.5: $(if($h.alive){'up'}else{'unknown'})" } catch { Write-Host "  WARN GPT-5.5: down" }
     try { Invoke-RestMethod 'http://127.0.0.1:11434/api/tags' -TimeoutSec 2 | Out-Null; Write-Host "  Ollama: up" } catch { Write-Host "  WARN Ollama: down" }
 
     # Step 4: refresh volatile cache layer (prompt caching optimization)
@@ -110,7 +110,7 @@ switch ($Command) {
       }
     }
 
-    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "OK   GPT-5.5 server: $($h.status)" } catch { Write-Host "WARN GPT-5.5 server not responding"; $warnings++ }
+    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "OK   GPT-5.5 server: $(if($h.alive){'up'}else{'unknown'})" } catch { Write-Host "WARN GPT-5.5 server not responding"; $warnings++ }
     try { $o = Invoke-RestMethod 'http://127.0.0.1:11434/api/tags' -TimeoutSec 3; Write-Host "OK   Ollama: $($o.models.Count) models" } catch { Write-Host "WARN Ollama not responding"; $warnings++ }
 
     $res = Get-Resources
@@ -219,6 +219,22 @@ switch ($Command) {
     $capId = $Arguments[0]
     $rest = if ($Arguments.Count -gt 1) { $Arguments[1..($Arguments.Count - 1)] } else { @() }
 
+    # Support --file <path> for long prompts (>8191 chars or special characters)
+    $fileIdx = [Array]::IndexOf($Arguments, '--file')
+    if ($fileIdx -ge 0 -and $fileIdx + 1 -lt $Arguments.Count) {
+      $promptFile = $Arguments[$fileIdx + 1]
+      if (-not (Test-Path $promptFile)) { Write-Host "ERR  file not found: $promptFile"; exit 1 }
+      $fileContent = Get-Content $promptFile -Raw -Encoding UTF8
+      $rest = @($fileContent)
+      # Remove --file and its value from $rest for downstream consumers
+      $restArgs = [System.Collections.ArrayList]::new()
+      for ($i = 1; $i -lt $Arguments.Count; $i++) {
+        if ($i -eq $fileIdx -or $i -eq $fileIdx + 1) { continue }
+        [void]$restArgs.Add($Arguments[$i])
+      }
+      $rest = if ($restArgs.Count -gt 0) { $restArgs.ToArray() } else { @($fileContent) }
+    }
+
     $caps = Get-Capabilities
     $cap = $caps.capabilities | Where-Object { $_.id -eq $capId } | Select-Object -First 1
     if (-not $cap) { Write-Host "ERR  capability not found: $capId"; Write-Host "Run 'ai list' to see all capabilities"; exit 1 }
@@ -251,7 +267,7 @@ switch ($Command) {
     foreach ($f in @('resources.json','capabilities.json','routes.json')) {
       $p = Join-Path $Registry $f; $s = if (Test-Path $p) { "OK" } else { "MISSING" }; Write-Host "  $f : $s"
     }
-    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "GPT-5.5: busy=$($h.busy) $($h.status)" } catch { Write-Host "GPT-5.5: DOWN" }
+    try { $h = Invoke-RestMethod 'http://127.0.0.1:3000/health' -TimeoutSec 3; Write-Host "GPT-5.5: alive=$($h.alive) busy=$($h.busy)" } catch { Write-Host "GPT-5.5: DOWN" }
     try { $o = Invoke-RestMethod 'http://127.0.0.1:11434/api/tags' -TimeoutSec 3; Write-Host "Ollama: $($o.models.Count) models" } catch { Write-Host "Ollama: DOWN" }
   }
 
@@ -273,7 +289,9 @@ switch ($Command) {
   'crystallize' {
     $dry = $Arguments -contains '-DryRun' -or $Arguments -contains '--dry-run'
     $force = $Arguments -contains '-Force' -or $Arguments -contains '--force'
-    $crystallizeScript = Join-Path (Join-Path $Root 'scripts') 'skill-crystallize.ps1'
+    $jsonOut = $Arguments -contains '-Json' -or $Arguments -contains '--json'
+    $python = 'D:/python3.12.10/python.exe'
+    $crystallizePy = Join-Path (Join-Path $Root 'scripts') 'skill-crystallize.py'
 
     # Extract -ExecutionLogFile or -ExecutionLog value
     $logFile = ''
@@ -282,7 +300,6 @@ switch ($Command) {
     if (-not $logFile) {
       $logIdx = [Array]::IndexOf($Arguments, '-ExecutionLog')
       if ($logIdx -ge 0 -and $logIdx + 1 -lt $Arguments.Count) {
-        # Write to temp file
         $tempFile = Join-Path (Join-Path $Root 'runtime') 'crystallize-exec-log.tmp.txt'
         $Arguments[$logIdx + 1] | Set-Content -LiteralPath $tempFile -Encoding UTF8
         $logFile = $tempFile
@@ -292,28 +309,26 @@ switch ($Command) {
     # Everything else is task description
     $taskParts = @()
     for ($i = 0; $i -lt $Arguments.Count; $i++) {
-      if ($Arguments[$i] -in @('-DryRun','--dry-run','-Force','--force')) { continue }
+      if ($Arguments[$i] -in @('-DryRun','--dry-run','-Force','--force','-Json','--json')) { continue }
       if ($Arguments[$i] -in @('-ExecutionLog','-ExecutionLogFile')) { $i++; continue }
       $taskParts += $Arguments[$i]
     }
     $taskDesc = $taskParts -join ' '
-    if (-not $taskDesc) { Write-Host "Usage: ai crystallize '<task description>' [-ExecutionLogFile <file>] [-DryRun] [-Force]"; Write-Host "Crystallize a complex task into a reusable SKILL.md."; exit 1 }
+    if (-not $taskDesc) { Write-Host "Usage: ai crystallize '<task description>' -ExecutionLogFile <file> [-DryRun] [-Force]"; Write-Host "Crystallize a complex task into a reusable SKILL.md via GPT-5.5."; exit 1 }
 
     if (-not $logFile) {
       Write-Host "Usage: ai crystallize '<task>' -ExecutionLogFile <file> [-DryRun] [-Force]"
       Write-Host "First write execution log to a file, then pass it with -ExecutionLogFile."
       exit 1
     }
-    # Note: can't use splatting for switch params reliably in this pwsh version
-    if ($dry -and $force) {
-      & $crystallizeScript -TaskDescription $taskDesc -ExecutionLogFile $logFile -DryRun -Force
-    } elseif ($dry) {
-      & $crystallizeScript -TaskDescription $taskDesc -ExecutionLogFile $logFile -DryRun
-    } elseif ($force) {
-      & $crystallizeScript -TaskDescription $taskDesc -ExecutionLogFile $logFile -Force
-    } else {
-      & $crystallizeScript -TaskDescription $taskDesc -ExecutionLogFile $logFile
-    }
+
+    # Build Python CLI args
+    $pyArgs = @($crystallizePy, $taskDesc, '--exec-log', $logFile)
+    if ($dry) { $pyArgs += '--dry-run' }
+    if ($force) { $pyArgs += '--force' }
+    if ($jsonOut) { $pyArgs += '--json' }
+
+    & $python $pyArgs
     exit $LASTEXITCODE
   }
 

@@ -1,0 +1,58 @@
+{
+  "notepad": {
+    "launch": "notepad",
+    "editor": {"control_type": "Document"},
+    "save_dialog": {
+      "filename_input": {"control_type": "Edit", "name_hint": "File name"},
+      "save_button": {"control_type": "Button", "name": "Save"}
+    }
+  },
+  "explorer": {
+    "launch": "explorer",
+    "address_bar": {"control_type": "Edit", "name": "Address"},
+    "search_box": {"control_type": "Edit", "name": "Search"},
+    "file_list": {"control_type": "List"}
+  },
+  "calc": {
+    "launch": "calc",
+    "display": {"automation_id": "CalculatorResults"},
+    "buttons": {"control_type": "Button"}
+  },
+  "settings": {
+    "launch": "ms-settings:",
+    "search_box": {"control_type": "Edit", "name": "Find a setting"},
+    "nav_items": {"control_type": "ListItem"}
+  },
+  "taskmgr": {
+    "launch": "taskmgr",
+    "hotkey": ["ctrl","shift","esc"]
+  },
+  "chrome": {
+    "launch": "chrome",
+    "address_bar": {"control_type": "Edit", "automation_id_hint": "omnibox"},
+    "tab_list": {"control_type": "Tab"}
+  },
+  "edge": {
+    "launch": "msedge",
+    "address_bar": {"control_type": "Edit", "automation_id_hint": "omnibox"}
+  },
+  "vscode": {
+    "launch": "code",
+    "editor": {"control_type": "Document"},
+    "command_palette": {"hotkey": ["ctrl","shift","p"]}
+  },
+  "terminal": {
+    "launch": "wt",
+    "hotkey": ["win","x"]
+  },
+  "start_menu": {
+    "open": {"hotkey": ["win"]},
+    "search": {"hotkey": ["win"], "text": ""}
+  },
+  "obs_studio": {
+    "launch": "D:\\obs-studio\\bin\\64bit\\obs64.exe",
+    "websocket_port": 4455,
+    "scene_list": {"control_type": "List"},
+    "start_virtual_cam": {"hotkey": ["ctrl","f8"]}
+  }
+}

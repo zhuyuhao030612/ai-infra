@@ -1,0 +1,16 @@
+{
+  "root": "D:\\Code",
+  "local_agent": "D:\\Code\\local-agent",
+  "ai_infra": "D:\\Code\\ai-infra",
+  "ai_pipeline": "D:\\Code\\ai-pipeline",
+  "logs": "D:\\Code\\ai-infra\\logs",
+  "failures": "D:\\Code\\ai-infra\\failures",
+  "lessons": "D:\\Code\\ai-infra\\data\\lessons",
+  "gpt_queue": "D:\\Code\\ai-pipeline\\data",
+  "gpt_queue_deprecated": "D:\\Code\\ai-pipeline\\gpt-queue",
+  "gpt_cache": "D:\\Code\\ai-pipeline\\gpt-cache",
+  "screenshots": "D:\\Code\\screenshots",
+  "state": "D:\\Code\\.ai-state",
+  "runs": "D:\\Code\\.ai-state\\runs",
+  "events": "D:\\Code\\ai-infra\\logs\\events.jsonl"
+}

@@ -1,0 +1,6 @@
+{
+  "tool": "PowerShell",
+  "reason": "L4 BLOCKED: agent-ask.ps1 with credential-like content detected. Redact before sending to external model.",
+  "ts": "2026-06-29T16:54:09.7323050+08:00",
+  "level": "blocked"
+}

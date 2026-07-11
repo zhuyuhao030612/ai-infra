@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-infra.local/schemas/task-schema.json",
+  "title": "Task Definition",
+  "description": "Machine-readable task definition for automation pipeline",
+  "type": "object",
+  "required": ["id", "title", "prompt", "max_level", "status", "created_at"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique task identifier, e.g. task-20260628-120000-abc123"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable task title"
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Full task description / prompt"
+    },
+    "max_level": {
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L3", "L4", "L5"],
+      "description": "Maximum allowed operation level"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "running", "completed", "failed", "blocked"],
+      "description": "Current task status in state machine"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 creation timestamp"
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version, currently '1.0'"
+    },
+    "done_when": {
+      "type": "string",
+      "description": "Success criteria"
+    },
+    "verify_by": {
+      "type": "string",
+      "description": "Verification method"
+    },
+    "fallback_if": {
+      "type": "string",
+      "description": "Fallback plan"
+    },
+    "allow_l3": {
+      "type": "boolean",
+      "description": "Whether L3+ operations are explicitly allowed"
+    },
+    "evidence_path": {
+      "type": "string",
+      "description": "Relative path to evidence.jsonl within run directory"
+    },
+    "run_dir": {
+      "type": "string",
+      "description": "Absolute path to the run directory"
+    },
+    "transitions": {
+      "type": "array",
+      "description": "State transition history",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "ts"],
+        "properties": {
+          "from": { "type": ["string", "null"], "description": "Previous state (null for initial)" },
+          "to": { "type": "string", "description": "New state" },
+          "ts": { "type": "string", "format": "date-time", "description": "ISO 8601 transition timestamp" },
+          "reason": { "type": "string", "description": "Why the transition happened" }
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "description": "Final task result (populated on completion)",
+      "properties": {
+        "verify": { "type": "boolean" },
+        "smoke": { "type": "boolean" },
+        "outcome": { "type": "string" },
+        "evidence_count": { "type": "integer" }
+      }
+    }
+  }
+}

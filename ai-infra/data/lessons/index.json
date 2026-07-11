@@ -1,0 +1,128 @@
+[
+  {
+    "id": "L001",
+    "title": "Python open() GBK 编码错误",
+    "tags": [
+      "python",
+      "encoding",
+      "windows",
+      "utf-8",
+      "gbk",
+      "powershell",
+      "path"
+    ],
+    "match_keywords": [
+      "python encoding",
+      "utf-8",
+      "gbk",
+      "编码",
+      "中文路径",
+      "乱码",
+      "powershell path",
+      "unicode decode error",
+      "open file"
+    ],
+    "date": "2026-06-27",
+    "source": "P1-2 verify.ps1",
+    "severity": "medium"
+  },
+  {
+    "id": "L002",
+    "title": "ToDesk自绘UI无标准控件 UIA读不到 SendKeys盲打不可靠",
+    "tags": [
+      "gui"
+    ],
+    "match_keywords": [
+      "gui"
+    ],
+    "date": "2026-06-28",
+    "source": "ToDesk连接尝试",
+    "severity": "unknown",
+    "status": "draft"
+  },
+  {
+    "id": "L003",
+    "title": "PowerShell StrictMode与switch参数冲突 去掉Set-StrictMode解决",
+    "tags": [
+      "powershell"
+    ],
+    "match_keywords": [
+      "powershell"
+    ],
+    "date": "2026-06-28",
+    "source": "setup-v2.ps1部署",
+    "severity": "unknown",
+    "status": "draft"
+  },
+  {
+    "id": "L004",
+    "title": "UAC剥夺SSH网络登录的管理员令牌 注册表和服务操作被拒",
+    "tags": [
+      "windows"
+    ],
+    "match_keywords": [
+      "windows"
+    ],
+    "date": "2026-06-28",
+    "source": "Win10 RDP启用尝试",
+    "severity": "unknown",
+    "status": "draft"
+  },
+  {
+    "id": "L005",
+    "title": "Vision API大图超时 必须先裁剪窗口+压缩JPEG质量40%到50KB以下",
+    "tags": [
+      "vision",
+      "timeout"
+    ],
+    "match_keywords": [
+      "vision"
+    ],
+    "date": "2026-06-28",
+    "source": "ToDesk截图分析",
+    "severity": "unknown",
+    "status": "draft"
+  },
+  {
+    "id": "L006",
+    "title": "WiFi和有线可能在同一子网但路由器隔离 ping通TCP不通",
+    "tags": [
+      "network"
+    ],
+    "match_keywords": [
+      "network"
+    ],
+    "date": "2026-06-28",
+    "source": "WiFi Win10部署",
+    "severity": "unknown",
+    "status": "draft"
+  },
+  {
+    "id": "L007",
+    "title": "部署脚本必须支持-Plan/-Apply/-DryRun 不能直接改系统",
+    "tags": [
+      "deploy"
+    ],
+    "match_keywords": [
+      "deploy"
+    ],
+    "date": "2026-06-28",
+    "source": "setup-v2.ps1",
+    "severity": "unknown",
+    "status": "draft"
+  },
+  {
+    "id": "L008",
+    "title": "Get-Process MainWindowHandle为0时进程无顶层窗口 必须先EnumWindows确认",
+    "tags": [
+      "windows"
+    ],
+    "match_keywords": [
+      "process"
+    ],
+    "date": "2026-06-28",
+    "source": "P0-1:Doubao/Notepad对比测试",
+    "severity": "unknown",
+    "status": "draft"
+  }
+]

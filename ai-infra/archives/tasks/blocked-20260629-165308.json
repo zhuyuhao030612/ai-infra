@@ -1,0 +1,6 @@
+{
+  "reason": "L4 BLOCKED: agent-ask.ps1 sending sensitive path (matched '\\.env\\b'). External model must not receive credentials. Remove sensitive paths or use a local agent.",
+  "ts": "2026-06-29T16:53:08.5647072+08:00",
+  "level": "blocked",
+  "tool": "PowerShell"
+}

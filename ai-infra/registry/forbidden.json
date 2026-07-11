@@ -1,0 +1,12 @@
+﻿{
+  "schemaVersion": 1,
+  "description": "禁止存在的路径。ai doctor --strict 检查。旧文件复活时立即报错。",
+  "forbidden_paths": [
+    ".claude/baselines",
+    "ai-infra/quarantine",
+    "CAPABILITY_REGISTRY.md"
+  ],
+  "forbidden_files": [
+    "ai-pipeline/start-server.ps1"
+  ]
+}

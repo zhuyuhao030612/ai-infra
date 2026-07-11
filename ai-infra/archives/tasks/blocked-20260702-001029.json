@@ -1,0 +1,6 @@
+{
+  "ts": "2026-07-02T00:10:29.4864170+08:00",
+  "reason": "L3+/L4 blocked: matched 'C:\\\\'. Needs human confirmation or risk_ack=true from human.",
+  "tool": "PowerShell",
+  "level": "blocked"
+}

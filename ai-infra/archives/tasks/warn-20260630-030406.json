@@ -1,0 +1,6 @@
+{
+  "ts": "2026-06-30T03:04:06.6966870+08:00",
+  "reason": "Warning: matched 'browser-profile'. Proceeding but logged for audit.",
+  "tool": "PowerShell",
+  "level": "warning"
+}

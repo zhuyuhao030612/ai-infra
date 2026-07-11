@@ -61,6 +61,15 @@ ai-infra/memory/*.jsonl
 ai-infra/smoke/smoke-history.jsonl
 ai-infra/logs/
 ai-infra/failures/
+ai-infra/runtime/*.json
+ai-infra/runtime/*.jsonl
+ai-infra/runtime/*.db
+ai-infra/runtime/*.txt
+ai-infra/runtime/*.tmp*
+ai-infra/runtime/test-*.ps1
+ai-infra/runtime/debug-*.ps1
+ai-infra/runtime/radical-test.ps1
+ai-infra/runtime/rebuild-step1.ps1
 
 # Local agent logs
 local-agent/logs/
@@ -78,3 +87,18 @@ windows-computer-use-mcp/build/
 # Database files
 *.sqlite
 *.sqlite3
+
+# Backups
+.backups/
+ai-infra/bin/*.bak*
+
+# External repos (managed independently)
+TentOfTrials-bounty/
+windows-computer-use-mcp/
+
+# Runtime data (large, not source)
+ai-pipeline/data/
+ai-pipeline/gpt-cache/
+AppData/
+worktrees/
+data/

@@ -1,0 +1,13 @@
+[project]
+name = "local-agent"
+version = "0.1.0"
+description = "Local system agent for AI model control — model-agnostic, audit-safe"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "psutil>=7.0",
+    "send2trash>=1.8",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+]
